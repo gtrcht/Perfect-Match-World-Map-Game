@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfect Country Match 3</title>
+    <!-- Include Material Design Lite CSS -->
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <!-- Include Material Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <!-- Include Material Design Lite JavaScript -->
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      }
+
+      .content {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        width: 100%;
+        height: calc(100vh - 64px);
+        /* Adjust height to account for score bar */
+      }
+
+      #score-container {
+        width: 100%;
+        height: 64px;
+        /* Height of the score bar */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      #guessed-list-container {
+        width: 300px;
+        /* Fixed width for the guessed list */
+        height: 100%;
+        overflow-y: auto;
+        padding: 20px;
+        box-sizing: border-box;
+        /* Include padding in width calculation */
+      }
+
+      .guessed-list {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .guessed-list li {
+        padding: 4px 0;
+      }
+
+      #svg-container {
+        width: 100%;
+        /* Container width - could be 100vw for full viewport width or any other value */
+        height: calc(100vh - 64px);
+        /* Container height - could be 100vh for full viewport height or any other value */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        /* Prevents scrollbars if SVG overflows */
+      }
+
+      #svg-container svg {
+        max-width: 100%;
+        /* Maximum relative to container width */
+        max-height: 100%;
+        /* Maximum relative to container height */
+        width: 100%;
+        /* Scales width to fit the container */
+        height: auto;
+        /* Scales height to maintain aspect ratio */
+        transition: transform 0.1s ease;
+        /* Smooth transition for zoom */
+      }
+
+      .zoom-controls {
+        position: absolute;
+        top: 74px;
+        right: 10px;
+        z-index: 10;
+      }
+
+      .zoom-controls button {
+        margin-bottom: 5px;
+      }
+
+      #suggestions .selected {
+        background-color: lightblue;
+      }
+
+      #country-tooltip {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        padding: 5px;
+        border-radius: 3px;
+        pointer-events: none;
+		z-index: 1000;
+        /* Prevents the tooltip from interfering with mouse events */
+      }
+
+      #suggestions {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-top: none;
+    position: absolute;
+    width: calc(100% - 40px);
+    box-sizing: border-box;
+    background-color: white;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1001;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
+}
+
+#suggestions li {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#suggestions li:hover {
+    background-color: #eeeeee;
+}
+
+#promptContainer {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background-color: white;
+    padding: 24px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
+    width: 300px;
+}
+
+#backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    box-sizing: border-box;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12) inset;
+}
+
+button {
+    background-color: #ffffff;
+    color: #646464;
+    border: none;
+    padding: 10px 20px;
+    margin: 10px 8px 0 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #f5f5f5;
+}
+
+button:active {
+    background-color: #e0e0e0;
+}
+
+.material-icons {
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+/* Sidebar on the right */
+#remaining-container {
+    width: 0; /* Hidden by default */
+    height: 100%;
+    overflow-y: auto;
+    background-color: white;
+    transition: width 0.3s ease;
+    border-left: none;
+    display: block !important; /* Override the previous display:none */
+}
+
+#remaining-container.open {
+    width: 300px;
+    border-left: 1px solid #e0e0e0;
+}
+
+/* Floating button to open it */
+#toggle-sidebar-btn {
+    position: absolute;
+    top: 130px; /* Below zoom controls */
+    right: 10px;
+    z-index: 10;
+}
+
+    </style>
+
+    <script>
+		// --- GLOBAL VARIABLES ---
+		var score = 0;
+		var guessedCountries = [];
+		var lives = 3;
+		var maxScore = 0;
+		var pathIdentifier = '';
+		var selectedPath = null;
+		var countryTitles = []; // Moved to global so both Map and UI can see it
+
+		// Zoom & Pan state
+		var currentScale = 1;
+		var currentTranslate = { x: 0, y: 0 };
+		let isDragging = false;
+		let mouseDownPos = { x: 0, y: 0 };
+
+		// --- 1. CORE UI LOGIC (Runs immediately) ---
+		document.addEventListener('DOMContentLoaded', function() {
+			updateScore();
+			
+			// Attach OK button logic
+			document.getElementById('okButton').onclick = handleGuess;
+
+			// Attach Cancel button logic
+			document.getElementById('cancelButton').onclick = closePrompt;
+
+			// Attach Backdrop logic (click outside to close)
+			document.getElementById('backdrop').onclick = closePrompt;
+
+			// Attach Autocomplete logic
+			setupAutocomplete();
+
+			// Now, fetch the map
+			fetch('world_map.svg')
+				.then(response => response.text())
+				.then(data => {
+					document.getElementById('svg-container').innerHTML = data;
+					setupMapInteractions(); 
+				})
+				.catch(err => {
+					console.error("Error loading SVG:", err);
+					showTemporaryMessage("Failed to load map file.");
+				});
+		});
+
+		// --- 2. MAP LOGIC (Runs after fetch) ---
+		function setupMapInteractions() {
+			var svgElement = document.querySelector('#svg-container svg');
+			if (!svgElement) return;
+			
+			svgElement.setAttribute('id', 'svg-pan-zoom'); 
+			var paths = svgElement.querySelectorAll('path');
+
+			paths.forEach(function(path) {
+				var title = path.getAttribute('title');
+				if (title) countryTitles.push(title);
+
+				path.addEventListener('click', function(event) {
+					if (this.style.fill === 'green') return;
+					
+					selectedPath = this;
+					pathIdentifier = this.getAttribute('title').toLowerCase();
+					
+					document.getElementById('promptContainer').style.display = 'block';
+					document.getElementById('backdrop').style.display = 'block';
+					document.getElementById('autocomplete').focus();
+				});
+
+				path.addEventListener('mousemove', function(event) {
+					this.style.strokeWidth = 2 / currentScale;
+					this.style.stroke = "darkblue";
+					var tooltip = document.getElementById('country-tooltip');
+					tooltip.textContent = this.style.fill === 'green' ? this.getAttribute('title') : 'Not guessed';
+					tooltip.style.display = 'block';
+					tooltip.style.left = (event.clientX + 10) + 'px';
+					tooltip.style.top = (event.clientY + 10) + 'px';
+				});
+
+				path.addEventListener('mouseleave', function() {
+					this.style.strokeWidth = '';
+					this.style.stroke = '';
+					document.getElementById('country-tooltip').style.display = 'none';
+				});
+			});
+
+			maxScore = countryTitles.length;
+			updateScore();
+			setupZoomAndPan(svgElement);
+		}
+
+		// --- 3. HELPER FUNCTIONS ---
+
+		function handleGuess() {
+			const input = document.getElementById('autocomplete');
+			const userGuess = input.value.trim().toLowerCase();
+
+			if (!userGuess) {
+				showTemporaryMessage("Type a name first!");
+				return;
+			}
+
+			if (userGuess === pathIdentifier) {
+				showTemporaryMessage("Correct!");
+				selectedPath.style.fill = 'green';
+				score++;
+				guessedCountries.push(selectedPath.getAttribute('title'));
+				updateScore();
+				updateGuessedList();
+				closePrompt();
+			} else {
+				showTemporaryMessage("Incorrect!");
+				selectedPath.style.fill = 'red';
+				lives--;
+				updateScore();
+				if (lives <= 0) showTemporaryMessage("Game Over!");
+				// Reset color after 1 second if wrong
+				setTimeout(() => { if(selectedPath.style.fill !== 'green') selectedPath.style.fill = ''; }, 1000);
+				closePrompt();
+			}
+		}
+
+		function setupAutocomplete() {
+			const input = document.getElementById('autocomplete');
+			const suggestions = document.getElementById('suggestions');
+
+			input.addEventListener('input', function() {
+				const val = this.value.toLowerCase();
+				suggestions.innerHTML = '';
+				if (val.length < 2) return;
+
+				const matches = countryTitles.filter(t => t.toLowerCase().includes(val));
+				matches.forEach(m => {
+					const li = document.createElement('li');
+					li.textContent = m;
+					li.onclick = () => {
+						input.value = m;
+						suggestions.innerHTML = '';
+					};
+					suggestions.appendChild(li);
+				});
+			});
+
+			// Handle Enter key in input
+			input.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') handleGuess();
+			});
+		}
+
+		function closePrompt() {
+			document.getElementById('promptContainer').style.display = 'none';
+			document.getElementById('backdrop').style.display = 'none';
+			document.getElementById('autocomplete').value = '';
+			document.getElementById('suggestions').innerHTML = '';
+		}
+
+		function setupZoomAndPan(svgElement) {
+    const container = document.getElementById('svg-container');
+    
+    const update = () => {
+        svgElement.style.transformOrigin = "0 0"; // Critical for manual matrix math
+        svgElement.style.transform = `matrix(${currentScale}, 0, 0, ${currentScale}, ${currentTranslate.x}, ${currentTranslate.y})`;
+    };
+
+    // Zoom Buttons (center of container)
+    const zoomButtonClick = (factor) => {
+        const rect = container.getBoundingClientRect();
+        zoomAt(rect.width / 2, rect.height / 2, factor);
+    };
+
+    document.getElementById('zoom-in').onclick = () => zoomButtonClick(1.2);
+    document.getElementById('zoom-out').onclick = () => zoomButtonClick(1 / 1.2);
+
+    // The Core Zoom Math
+    function zoomAt(mouseX, mouseY, factor) {
+        const newScale = currentScale * factor;
+        
+        // Don't zoom out too far or in too much
+        if (newScale < 0.5 || newScale > 20) return;
+
+        // Calculate the mouse position relative to the SVG origin (pre-transform)
+        // formula: (mousePos - currentTranslate) / currentScale
+        const worldX = (mouseX - currentTranslate.x) / currentScale;
+        const worldY = (mouseY - currentTranslate.y) / currentScale;
+
+        // Update the scale
+        currentScale = newScale;
+
+        // Update translation to keep the "world" point under the cursor
+        // formula: mousePos - (worldPos * newScale)
+        currentTranslate.x = mouseX - (worldX * currentScale);
+        currentTranslate.y = mouseY - (worldY * currentScale);
+
+        update();
+    }
+
+    // Mouse Wheel Event
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        // Get mouse position relative to the container
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const zoomSpeed = 0.1;
+        const delta = -Math.sign(e.deltaY);
+        const factor = Math.pow(1 + zoomSpeed, delta);
+        
+        zoomAt(mouseX, mouseY, factor);
+    }, { passive: false });
+
+    // Panning (Dragging)
+    let isPanning = false;
+    let start = { x: 0, y: 0 };
+
+    container.onmousedown = (e) => {
+        isPanning = true;
+        container.style.cursor = 'grabbing';
+        start = { x: e.clientX - currentTranslate.x, y: e.clientY - currentTranslate.y };
+    };
+
+    window.onmousemove = (e) => {
+        if (!isPanning) return;
+        currentTranslate.x = e.clientX - start.x;
+        currentTranslate.y = e.clientY - start.y;
+        update();
+    };
+
+    window.onmouseup = () => {
+        isPanning = false;
+        container.style.cursor = 'default';
+    };
+    
+    // Initial update to set origin
+    update();
+}
+
+		function updateScore() {
+			document.getElementById('score').innerHTML = `Score: ${score} | Lives: ${'❤️'.repeat(Math.max(0, lives))} | Max: ${maxScore}`;
+		}
+
+		function updateGuessedList() {
+			const list = document.getElementById('guessed-list');
+			list.innerHTML = '';
+			guessedCountries.forEach(c => {
+				const li = document.createElement('li');
+				li.className = 'mdl-list__item';
+				li.textContent = c;
+				list.appendChild(li);
+			});
+		}
+
+		function showTemporaryMessage(msg) {
+			const el = document.getElementById('tempMessage');
+			el.textContent = msg;
+			el.style.display = 'block';
+			setTimeout(() => el.style.display = 'none', 2500);
+		}
+
+		// Update the Remaining List
+		function updateRemainingList() {
+			const list = document.getElementById('remaining-list');
+			list.innerHTML = '';
+			
+			// Filter out guessed countries
+			const remaining = countryTitles
+				.filter(name => !guessedCountries.includes(name))
+				.sort();
+
+			remaining.forEach(name => {
+				const li = document.createElement('li');
+				li.className = 'mdl-list__item';
+				li.textContent = name;
+				list.appendChild(li);
+			});
+		}
+
+    </script>
+</head>
+
+<body>
+<div id="backdrop"></div>
+<div id="tempMessage" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #f8f8f8; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;"></div>
+<div id="promptContainer" tabindex="-1">
+    <p>Enter the name of the country:</p>
+    <input type="text" id="autocomplete" placeholder="Start typing...">
+    <ul id="suggestions"></ul>
+    <button id="okButton"><i class="material-icons">check</i>OK</button>
+    <button id="cancelButton"><i class="material-icons">close</i>Cancel</button>
+</div>
+<div id="country-tooltip"></div>
+<div id="score-container" class="mdl-shadow--2dp">
+  <div id="score" class="mdl-typography--title">Score: 0 | Lives: ❤️❤️❤️ | Max: 0</div>
+</div>
+
+<!-- Add toggle button near zoom controls -->
+<div class="zoom-controls">
+  <button id="zoom-in" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+    <i class="material-icons">zoom_in</i>
+  </button>
+  <button id="zoom-out" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+    <i class="material-icons">zoom_out</i>
+  </button>
+  <button id="toggle-sidebar-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+    <i class="material-icons">list</i>
+  </button>
+</div>
+
+<div class="content">
+  <!-- Left: Guessed List -->
+  <div id="guessed-list-container" class="mdl-shadow--2dp">
+    <h6 style="padding-left: 16px;">Guessed</h6>
+    <ul id="guessed-list" class="guessed-list mdl-list"></ul>
+  </div>
+
+  <!-- Center: Map -->
+  <div id="svg-container"></div>
+
+  <!-- Right: Remaining List (Collapsible) -->
+  <div id="remaining-container" class="mdl-shadow--2dp">
+    <h6 style="padding-left: 16px;">Remaining</h6>
+    <ul id="remaining-list" class="mdl-list"></ul>
+  </div>
+</div>
+
+
+</body>
