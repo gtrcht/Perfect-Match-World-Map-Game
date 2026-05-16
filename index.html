@@ -2,14 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perfect Country Match 3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Perfect Country Match</title>
     <!-- Include Material Design Lite CSS -->
     <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
     <!-- Include Material Icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <!-- Include Material Design Lite JavaScript -->
     <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    <script src="leaderboard.js"></script>
     <style>
       body {
         margin: 0;
@@ -18,6 +19,9 @@
         flex-direction: column;
         align-items: center;
         font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+        min-height: 100vh;
+        overflow: hidden; /* Prevent page scrolling on mobile */
+        -webkit-overflow-scrolling: touch;
       }
 
       .content {
@@ -25,29 +29,29 @@
         flex-direction: row;
         align-items: flex-start;
         width: 100%;
+        margin-top: 0;
+        padding-top: 64px;
         height: calc(100vh - 64px);
+        box-sizing: border-box;
         /* Adjust height to account for score bar */
       }
 
       #score-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
         width: 100%;
         height: 64px;
-        /* Height of the score bar */
         display: flex;
         justify-content: center;
         align-items: center;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        z-index: 2000;
+        background: white;
       }
 
-      #guessed-list-container {
-        width: 300px;
-        /* Fixed width for the guessed list */
-        height: 100%;
-        overflow-y: auto;
-        padding: 20px;
-        box-sizing: border-box;
-        /* Include padding in width calculation */
-      }
+      /* left sidebar is now unified in #side-container */
 
       .guessed-list {
         list-style-type: none;
@@ -59,7 +63,8 @@
       }
 
       #svg-container {
-        width: 100%;
+        flex: 1;
+        width: auto;
         /* Container width - could be 100vw for full viewport width or any other value */
         height: calc(100vh - 64px);
         /* Container height - could be 100vh for full viewport height or any other value */
@@ -68,30 +73,56 @@
         align-items: center;
         overflow: hidden;
         /* Prevents scrollbars if SVG overflows */
+        position: relative;
+        touch-action: none;
+        -ms-touch-action: none;
       }
 
       #svg-container svg {
-        max-width: 100%;
-        /* Maximum relative to container width */
-        max-height: 100%;
-        /* Maximum relative to container height */
         width: 100%;
-        /* Scales width to fit the container */
-        height: auto;
-        /* Scales height to maintain aspect ratio */
-        transition: transform 0.1s ease;
-        /* Smooth transition for zoom */
+        height: 100%;
+        min-width: 100%;
+        min-height: 100%;
+        max-width: none;
+        max-height: none;
+        transition: none;
+        touch-action: none;
+        -ms-touch-action: none;
+        /* Disable transition during pinch and pan for crisp rendering */
       }
 
       .zoom-controls {
         position: absolute;
-        top: 74px;
+        top: 10px;
         right: 10px;
-        z-index: 10;
+        z-index: 2100;
+        display: flex;
+        flex-direction: column;
       }
 
       .zoom-controls button {
         margin-bottom: 5px;
+      }
+
+      #debug-panel {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        z-index: 2100;
+        background: rgba(255, 255, 255, 0.92);
+        color: #333;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 12px;
+        line-height: 1.4;
+        max-width: 260px;
+        white-space: pre-wrap;
+        pointer-events: none;
+      }
+
+      #toggle-sidebar-btn {
+        margin-bottom: 0;
       }
 
       #suggestions .selected {
@@ -136,6 +167,20 @@
 
 #suggestions li:hover {
     background-color: #eeeeee;
+}
+
+#namePromptContainer {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background-color: white;
+    padding: 24px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
+    width: 300px;
 }
 
 #promptContainer {
@@ -197,29 +242,52 @@ button:active {
     margin-right: 8px;
 }
 
-/* Sidebar on the right */
-#remaining-container {
-    width: 0; /* Hidden by default */
-    height: 100%;
-    overflow-y: auto;
-    background-color: white;
-    transition: width 0.3s ease;
-    border-left: none;
-    display: block !important; /* Override the previous display:none */
-}
-
-#remaining-container.open {
+/* Left unified sidebar */
+#side-container {
     width: 300px;
-    border-left: 1px solid #e0e0e0;
+    height: 100%;
+    background-color: white;
+    transition: width 0.3s ease, padding 0.3s ease;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-/* Floating button to open it */
-#toggle-sidebar-btn {
-    position: absolute;
-    top: 130px; /* Below zoom controls */
-    right: 10px;
-    z-index: 10;
+#side-container.open {
+    width: 300px;
 }
+
+#side-container.collapsed {
+    width: 0;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#side-container .side-top,
+#side-container .side-bottom {
+    overflow-y: auto;
+}
+
+#side-container .side-top {
+    flex: 1 1 50%;
+    padding-bottom: 8px;
+}
+
+#side-container .side-bottom {
+    flex: 1 1 50%;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 8px;
+}
+
+/* Keep toggle button inline with zoom controls */
+      /* Keep toggle buttons in the zoom-controls column so they align */
+      #toggle-sidebar-btn {
+        position: static;
+        margin-bottom: 0;
+      }
 
     </style>
 
@@ -232,6 +300,13 @@ button:active {
 		var pathIdentifier = '';
 		var selectedPath = null;
 		var countryTitles = []; // Moved to global so both Map and UI can see it
+		var playerName = 'Player';
+		var scoreAtFirstLifeLoss = null;
+		var scoreAtSecondLifeLoss = null;
+		var scoreAtLastLifeLoss = null;
+
+		// Debug options
+		const DEBUG_PANEL_ENABLED = true;
 
 		// Zoom & Pan state
 		var currentScale = 1;
@@ -252,14 +327,44 @@ button:active {
 			// Attach Backdrop logic (click outside to close)
 			document.getElementById('backdrop').onclick = closePrompt;
 
+			// Attach Name Prompt logic
+			document.getElementById('nameOkButton').onclick = handleNameOk;
+			document.getElementById('nameCancelButton').onclick = handleNameCancel;
+
 			// Attach Autocomplete logic
 			setupAutocomplete();
 
-			// Now, fetch the map
-			fetch('world_map.svg')
-				.then(response => response.text())
+			// Attach Sidebar Toggle
+      document.getElementById('toggle-sidebar-btn').onclick = toggleSidebar;
+      document.getElementById('toggle-debug-btn').onclick = toggleDebugPanel;
+
+      if (!DEBUG_PANEL_ENABLED) {
+        document.getElementById('debug-panel').style.display = 'none';
+      }
+
+      fetch('world_map.svg')
+        .then(response => response.text())
 				.then(data => {
-					document.getElementById('svg-container').innerHTML = data;
+					const container = document.getElementById('svg-container');
+					const controls = container.querySelector('.zoom-controls');
+					const debugPanel = container.querySelector('#debug-panel');
+					const parser = new DOMParser();
+					const svgDoc = parser.parseFromString(data, 'image/svg+xml');
+					const svgElement = svgDoc.documentElement;
+					svgElement.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+					svgElement.style.display = 'block';
+					svgElement.style.touchAction = 'none';
+					svgElement.style.msTouchAction = 'none';
+					const zoomGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+					while (svgElement.firstChild) {
+						zoomGroup.appendChild(svgElement.firstChild);
+					}
+					zoomGroup.setAttribute('id', 'zoom-group');
+					svgElement.appendChild(zoomGroup);
+					container.innerHTML = '';
+					container.appendChild(svgElement);
+					container.appendChild(controls);
+					if (debugPanel) container.appendChild(debugPanel);
 					setupMapInteractions(); 
 				})
 				.catch(err => {
@@ -269,18 +374,41 @@ button:active {
 		});
 
 		// --- 2. MAP LOGIC (Runs after fetch) ---
-		function setupMapInteractions() {
-			var svgElement = document.querySelector('#svg-container svg');
-			if (!svgElement) return;
-			
-			svgElement.setAttribute('id', 'svg-pan-zoom'); 
-			var paths = svgElement.querySelectorAll('path');
+    /*
+     * setupMapInteractions()
+     * - Initialize country path events (hover, click) and tooltips
+     * - Populate `countryTitles` and update UI lists
+     * - Calls `setupZoomAndPan()` to attach map zoom/pan handlers
+     */
+    function setupMapInteractions() {
+		// locate the SVG element we injected into the container
+		var svgElement = document.querySelector('#svg-container svg');
+		// if the SVG hasn't been loaded for some reason, bail out
+		if (!svgElement) return;
+		
+		// tag the SVG for easier debugging and CSS hooks
+		svgElement.setAttribute('id', 'svg-pan-zoom'); 
+		// gather all country path elements for interaction wiring
+		var paths = svgElement.querySelectorAll('path');
 
 			paths.forEach(function(path) {
+				path.style.vectorEffect = 'non-scaling-stroke';
+				path.setAttribute('vector-effect', 'non-scaling-stroke');
+				path.style.touchAction = 'none';
+				path.style.msTouchAction = 'none';
 				var title = path.getAttribute('title');
-				if (title) countryTitles.push(title);
+				if (title && !countryTitles.includes(title)) countryTitles.push(title);
+				let pathMouseDownPos = null;
+
+				path.addEventListener('mousedown', function(event) {
+					pathMouseDownPos = { x: event.clientX, y: event.clientY };
+				});
 
 				path.addEventListener('click', function(event) {
+					if (pathMouseDownPos && Math.hypot(event.clientX - pathMouseDownPos.x, event.clientY - pathMouseDownPos.y) > 5) {
+						pathMouseDownPos = null;
+						return;
+					}
 					if (this.style.fill === 'green') return;
 					
 					selectedPath = this;
@@ -291,9 +419,13 @@ button:active {
 					document.getElementById('autocomplete').focus();
 				});
 
-				path.addEventListener('mousemove', function(event) {
-					this.style.strokeWidth = 2 / currentScale;
+				path.addEventListener('pointerenter', function(event) {
+					hoveredCountryPath = this;
+					// this._originalNextSibling = this.nextSibling;
+					// this.parentNode.appendChild(this);
+					// this.style.strokeWidth = (2 / currentScale) + 'px';
 					this.style.stroke = "darkblue";
+          if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = "rgba(200, 200, 200, 0.7)"; // Add subtle background for better readability
 					var tooltip = document.getElementById('country-tooltip');
 					tooltip.textContent = this.style.fill === 'green' ? this.getAttribute('title') : 'Not guessed';
 					tooltip.style.display = 'block';
@@ -301,15 +433,28 @@ button:active {
 					tooltip.style.top = (event.clientY + 10) + 'px';
 				});
 
-				path.addEventListener('mouseleave', function() {
+				path.addEventListener('pointermove', function(event) {
+					var tooltip = document.getElementById('country-tooltip');
+					tooltip.style.left = (event.clientX + 10) + 'px';
+					tooltip.style.top = (event.clientY + 10) + 'px';
+				});
+
+				path.addEventListener('pointerleave', function() {
 					this.style.strokeWidth = '';
 					this.style.stroke = '';
+          if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = '';
+					// if (this._originalNextSibling) {
+					// 	this.parentNode.insertBefore(this, this._originalNextSibling);
+					// } else {
+					// 	this.parentNode.appendChild(this);
+					// }
 					document.getElementById('country-tooltip').style.display = 'none';
 				});
 			});
 
 			maxScore = countryTitles.length;
 			updateScore();
+			updateRemainingList();
 			setupZoomAndPan(svgElement);
 		}
 
@@ -331,13 +476,22 @@ button:active {
 				guessedCountries.push(selectedPath.getAttribute('title'));
 				updateScore();
 				updateGuessedList();
+				updateRemainingList();
 				closePrompt();
+			} else if (!countryTitles.some(c => c.toLowerCase() === userGuess)) {
+				showTemporaryMessage("Invalid country! Please select from the suggestions.");
 			} else {
+				if (lives === 3) scoreAtFirstLifeLoss = score;
+				else if (lives === 2) scoreAtSecondLifeLoss = score;
+				else if (lives === 1) scoreAtLastLifeLoss = score;
 				showTemporaryMessage("Incorrect!");
 				selectedPath.style.fill = 'red';
 				lives--;
 				updateScore();
-				if (lives <= 0) showTemporaryMessage("Game Over!");
+				if (lives <= 0) {
+					showTemporaryMessage("Game Over!");
+					recordGameOverEntry();
+				}
 				// Reset color after 1 second if wrong
 				setTimeout(() => { if(selectedPath.style.fill !== 'green') selectedPath.style.fill = ''; }, 1000);
 				closePrompt();
@@ -347,27 +501,54 @@ button:active {
 		function setupAutocomplete() {
 			const input = document.getElementById('autocomplete');
 			const suggestions = document.getElementById('suggestions');
+			let selectedSuggestionIndex = -1;
 
 			input.addEventListener('input', function() {
 				const val = this.value.toLowerCase();
 				suggestions.innerHTML = '';
+				selectedSuggestionIndex = -1;
 				if (val.length < 2) return;
 
 				const matches = countryTitles.filter(t => t.toLowerCase().includes(val));
-				matches.forEach(m => {
+				matches.forEach((m, i) => {
 					const li = document.createElement('li');
 					li.textContent = m;
 					li.onclick = () => {
 						input.value = m;
 						suggestions.innerHTML = '';
+						selectedSuggestionIndex = -1;
 					};
 					suggestions.appendChild(li);
 				});
 			});
 
-			// Handle Enter key in input
+			// Handle arrow keys and Enter in input
 			input.addEventListener('keydown', (e) => {
-				if (e.key === 'Enter') handleGuess();
+				const items = suggestions.querySelectorAll('li');
+				if (e.key === 'ArrowDown') {
+					e.preventDefault();
+					selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
+					highlightSuggestion(items, selectedSuggestionIndex);
+				} else if (e.key === 'ArrowUp') {
+					e.preventDefault();
+					selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+					highlightSuggestion(items, selectedSuggestionIndex);
+				} else if (e.key === 'Enter') {
+					if (selectedSuggestionIndex >= 0 && items[selectedSuggestionIndex]) {
+						e.preventDefault();
+						input.value = items[selectedSuggestionIndex].textContent;
+						suggestions.innerHTML = '';
+						selectedSuggestionIndex = -1;
+					} else {
+						handleGuess();
+					}
+				}
+			});
+		}
+
+		function highlightSuggestion(items, index) {
+			items.forEach((item, i) => {
+				item.classList.toggle('selected', i === index);
 			});
 		}
 
@@ -378,76 +559,206 @@ button:active {
 			document.getElementById('suggestions').innerHTML = '';
 		}
 
-		function setupZoomAndPan(svgElement) {
-    const container = document.getElementById('svg-container');
+    /*
+     * setupZoomAndPan(svgElement)
+     * - Handles wheel zoom, pinch-to-zoom, and drag panning for the SVG map.
+     * - Uses screen/client coordinates for gesture math and applies transforms
+     *   to the `#zoom-group` via `currentScale` and `currentTranslate`.
+     * - Stores the pinch anchor in CONTENT (world) coordinates so that
+     *   lifting/adding fingers does not cause jumps when the scale changes.
+     */
+    function setupZoomAndPan(svgElement) {
+  // container element that holds the SVG and UI chrome
+  const container = document.getElementById('svg-container');
     
+  // the <g id="zoom-group"> node which receives the transform for zoom/pan
+  const zoomGroup = svgElement.querySelector('#zoom-group');
+
+    // Convert client (screen) coordinates into SVG user/world coordinates
+    function getSvgPoint(clientX, clientY) {
+        const pt = svgElement.createSVGPoint();
+        pt.x = clientX;
+        pt.y = clientY;
+        return pt.matrixTransform(svgElement.getScreenCTM().inverse());
+    }
+
+    // Apply current transform state to the zoomGroup (scale + translate)
     const update = () => {
-        svgElement.style.transformOrigin = "0 0"; // Critical for manual matrix math
-        svgElement.style.transform = `matrix(${currentScale}, 0, 0, ${currentScale}, ${currentTranslate.x}, ${currentTranslate.y})`;
+        if (!zoomGroup) return;
+        zoomGroup.setAttribute('transform', `matrix(${currentScale}, 0, 0, ${currentScale}, ${currentTranslate.x}, ${currentTranslate.y})`);
+        updateDebugPanel();
     };
+
+    // Update the debug overlay with current transform and size information
+    function updateDebugPanel() {
+        const debug = document.getElementById('debug-panel');
+        if (!debug) return;
+        const containerRect = container.getBoundingClientRect();
+        const svgRect = svgElement.getBoundingClientRect();
+        debug.textContent =
+            `Zoom: ${currentScale.toFixed(2)}\n` +
+            `Translate: ${currentTranslate.x.toFixed(0)}, ${currentTranslate.y.toFixed(0)}\n` +
+            `Container: ${Math.round(containerRect.width)}x${Math.round(containerRect.height)}\n` +
+            `SVG: ${Math.round(svgRect.width)}x${Math.round(svgRect.height)}\n` +
+            `SVG offset: ${Math.round(svgRect.left)}, ${Math.round(svgRect.top)}`;
+    }
 
     // Zoom Buttons (center of container)
+    // These buttons zoom toward the center point of the visible container
     const zoomButtonClick = (factor) => {
         const rect = container.getBoundingClientRect();
-        zoomAt(rect.width / 2, rect.height / 2, factor);
+        const center = getSvgPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        zoomAt(center.x, center.y, factor);
     };
 
-    document.getElementById('zoom-in').onclick = () => zoomButtonClick(1.2);
-    document.getElementById('zoom-out').onclick = () => zoomButtonClick(1 / 1.2);
+    document.getElementById('zoom-in').onclick = () => zoomButtonClick(1.3);
+    document.getElementById('zoom-out').onclick = () => zoomButtonClick(1 / 1.3);
+    document.getElementById('zoom-reset').onclick = () => {
+        currentScale = 1;
+        currentTranslate = { x: 0, y: 0 };
+        update();
+    };
 
     // The Core Zoom Math
-    function zoomAt(mouseX, mouseY, factor) {
+    // zoomAt keeps the specified SVG point anchored while scaling
+    function zoomAt(screenX, screenY, factor) {
         const newScale = currentScale * factor;
         
         // Don't zoom out too far or in too much
-        if (newScale < 0.5 || newScale > 20) return;
+        if (newScale < 0.5 || newScale > 40) return;
 
-        // Calculate the mouse position relative to the SVG origin (pre-transform)
-        // formula: (mousePos - currentTranslate) / currentScale
-        const worldX = (mouseX - currentTranslate.x) / currentScale;
-        const worldY = (mouseY - currentTranslate.y) / currentScale;
+        // Calculate the current world coordinate under the screen point
+        const worldX = (screenX - currentTranslate.x) / currentScale;
+        const worldY = (screenY - currentTranslate.y) / currentScale;
 
-        // Update the scale
         currentScale = newScale;
-
-        // Update translation to keep the "world" point under the cursor
-        // formula: mousePos - (worldPos * newScale)
-        currentTranslate.x = mouseX - (worldX * currentScale);
-        currentTranslate.y = mouseY - (worldY * currentScale);
+        currentTranslate.x = screenX - worldX * currentScale;
+        currentTranslate.y = screenY - worldY * currentScale;
 
         update();
     }
 
     // Mouse Wheel Event
-    container.addEventListener('wheel', (e) => {
+    // Zoom towards the mouse cursor (desktop scroll wheel)
+    svgElement.addEventListener('wheel', (e) => {
         e.preventDefault();
-        
-        // Get mouse position relative to the container
-        const rect = container.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
+        const point = getSvgPoint(e.clientX, e.clientY);
         const zoomSpeed = 0.1;
         const delta = -Math.sign(e.deltaY);
         const factor = Math.pow(1 + zoomSpeed, delta);
-        
-        zoomAt(mouseX, mouseY, factor);
+        zoomAt(point.x, point.y, factor);
     }, { passive: false });
+
+      // Touch: pinch to zoom and one-finger pan
+      // Disable default touch actions on the container so we can handle pinch/pan
+      container.style.touchAction = 'none';
+
+      let isTouchPinching = false;
+      let pinchStartDist = 0;
+      let pinchStartScale = 1;
+      let pinchAnchor = null;
+      let isTouchPanning = false;
+      let touchPanStart = { x: 0, y: 0, translateX: 0, translateY: 0 };
+
+      // Helper: distance between two touch points (screen coordinates)
+      function dist(t0, t1) {
+        return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      }
+
+      svgElement.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          isTouchPinching = true;
+          isTouchPanning = false;
+          pinchStartDist = dist(e.touches[0], e.touches[1]);
+          pinchStartScale = currentScale;
+          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const midSvg = getSvgPoint(midClientX, midClientY);
+          pinchAnchor = {
+            x: (midSvg.x - currentTranslate.x) / currentScale,
+            y: (midSvg.y - currentTranslate.y) / currentScale
+          };
+        } else if (e.touches.length === 1) {
+          isTouchPinching = false;
+          isTouchPanning = true;
+          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+          touchPanStart = {
+            x: point.x,
+            y: point.y,
+            translateX: currentTranslate.x,
+            translateY: currentTranslate.y
+          };
+        }
+      }, { passive: false });
+
+      svgElement.addEventListener('touchmove', (e) => {
+        if (isTouchPinching && e.touches.length === 2) {
+          e.preventDefault();
+          const newDist = dist(e.touches[0], e.touches[1]);
+          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const midSvg = getSvgPoint(midClientX, midClientY);
+          const desiredScale = pinchStartScale * (newDist / pinchStartDist);
+          const clampedScale = Math.max(0.5, Math.min(40, desiredScale));
+          if (!pinchAnchor) return;
+          currentScale = clampedScale;
+          currentTranslate.x = midSvg.x - pinchAnchor.x * currentScale;
+          currentTranslate.y = midSvg.y - pinchAnchor.y * currentScale;
+          update();
+        } else if (isTouchPanning && e.touches.length === 1) {
+          e.preventDefault();
+          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+          currentTranslate.x = touchPanStart.translateX + (point.x - touchPanStart.x);
+          currentTranslate.y = touchPanStart.translateY + (point.y - touchPanStart.y);
+          update();
+        }
+      }, { passive: false });
+
+      const finishTouchGesture = (e) => {
+        if (e.touches.length < 2) {
+          isTouchPinching = false;
+          pinchAnchor = null;
+        }
+        if (e.touches.length === 1) {
+          isTouchPanning = true;
+          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+          touchPanStart = {
+            x: point.x,
+            y: point.y,
+            translateX: currentTranslate.x,
+            translateY: currentTranslate.y
+          };
+        }
+        if (e.touches.length === 0) {
+          isTouchPanning = false;
+        }
+      };
+
+      svgElement.addEventListener('touchend', finishTouchGesture);
+      svgElement.addEventListener('touchcancel', finishTouchGesture);
 
     // Panning (Dragging)
     let isPanning = false;
-    let start = { x: 0, y: 0 };
+    let start = { x: 0, y: 0, translateX: 0, translateY: 0 };
 
     container.onmousedown = (e) => {
         isPanning = true;
         container.style.cursor = 'grabbing';
-        start = { x: e.clientX - currentTranslate.x, y: e.clientY - currentTranslate.y };
+        const point = getSvgPoint(e.clientX, e.clientY);
+        start = {
+          x: point.x,
+          y: point.y,
+          translateX: currentTranslate.x,
+          translateY: currentTranslate.y
+        };
     };
 
     window.onmousemove = (e) => {
         if (!isPanning) return;
-        currentTranslate.x = e.clientX - start.x;
-        currentTranslate.y = e.clientY - start.y;
+        const point = getSvgPoint(e.clientX, e.clientY);
+        currentTranslate.x = start.translateX + (point.x - start.x);
+        currentTranslate.y = start.translateY + (point.y - start.y);
         update();
     };
 
@@ -456,12 +767,11 @@ button:active {
         container.style.cursor = 'default';
     };
     
-    // Initial update to set origin
     update();
 }
 
 		function updateScore() {
-			document.getElementById('score').innerHTML = `Score: ${score} | Lives: ${'❤️'.repeat(Math.max(0, lives))} | Max: ${maxScore}`;
+			document.getElementById('score').innerHTML = `Score: ${score}/${maxScore} | Lives: ${'❤️'.repeat(Math.max(0, lives))}`;
 		}
 
 		function updateGuessedList() {
@@ -500,12 +810,69 @@ button:active {
 			});
 		}
 
+    // Toggle unified left sidebar
+    function toggleSidebar() {
+      const container = document.getElementById('side-container');
+      container.classList.toggle('collapsed');
+    }
+
+    function toggleDebugPanel() {
+      const debug = document.getElementById('debug-panel');
+      if (!debug) return;
+      debug.style.display = debug.style.display === 'block' ? 'none' : 'block';
+      updateDebugPanel();
+    }
+
+		function recordGameOverEntry() {
+			document.getElementById('namePromptContainer').style.display = 'block';
+			document.getElementById('backdrop').style.display = 'block';
+			document.getElementById('nameInput').focus();
+		}
+
+		function handleNameOk() {
+			playerName = document.getElementById('nameInput').value.trim() || 'Anonymous';
+			closeNamePrompt();
+			if (typeof addLeaderboardEntry !== 'function') return;
+			addLeaderboardEntry({
+				date: new Date().toISOString(),
+				playerName: playerName,
+				scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
+				scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
+				scoreAtLastLifeLoss: scoreAtLastLifeLoss
+			});
+		}
+
+		function handleNameCancel() {
+			playerName = 'Anonymous';
+			closeNamePrompt();
+			if (typeof addLeaderboardEntry !== 'function') return;
+			addLeaderboardEntry({
+				date: new Date().toISOString(),
+				playerName: playerName,
+				scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
+				scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
+				scoreAtLastLifeLoss: scoreAtLastLifeLoss
+			});
+		}
+
+		function closeNamePrompt() {
+			document.getElementById('namePromptContainer').style.display = 'none';
+			document.getElementById('backdrop').style.display = 'none';
+			document.getElementById('nameInput').value = '';
+		}
+
     </script>
 </head>
 
 <body>
 <div id="backdrop"></div>
 <div id="tempMessage" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #f8f8f8; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;"></div>
+<div id="namePromptContainer">
+    <p>Game Over! Enter your name for the leaderboard:</p>
+    <input type="text" id="nameInput" placeholder="Your name...">
+    <button id="nameOkButton"><i class="material-icons">check</i>OK</button>
+    <button id="nameCancelButton"><i class="material-icons">close</i>Cancel</button>
+</div>
 <div id="promptContainer" tabindex="-1">
     <p>Enter the name of the country:</p>
     <input type="text" id="autocomplete" placeholder="Start typing...">
@@ -515,38 +882,43 @@ button:active {
 </div>
 <div id="country-tooltip"></div>
 <div id="score-container" class="mdl-shadow--2dp">
-  <div id="score" class="mdl-typography--title">Score: 0 | Lives: ❤️❤️❤️ | Max: 0</div>
-</div>
-
-<!-- Add toggle button near zoom controls -->
-<div class="zoom-controls">
-  <button id="zoom-in" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
-    <i class="material-icons">zoom_in</i>
-  </button>
-  <button id="zoom-out" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
-    <i class="material-icons">zoom_out</i>
-  </button>
-  <button id="toggle-sidebar-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
-    <i class="material-icons">list</i>
-  </button>
+  <div id="score" class="mdl-typography--title">Score: 0/0 | Lives: ❤️❤️❤️</div>
 </div>
 
 <div class="content">
-  <!-- Left: Guessed List -->
-  <div id="guessed-list-container" class="mdl-shadow--2dp">
-    <h6 style="padding-left: 16px;">Guessed</h6>
-    <ul id="guessed-list" class="guessed-list mdl-list"></ul>
+  <!-- Left: Unified Sidebar (Guessed top / Remaining bottom) -->
+  <div id="side-container" class="mdl-shadow--2dp collapsed">
+    <div class="side-top">
+      <h6 style="padding-left: 16px; margin: 0;">Guessed</h6>
+      <ul id="guessed-list" class="guessed-list mdl-list"></ul>
+    </div>
+    <div class="side-bottom">
+      <h6 style="padding-left: 16px; margin: 0;">Remaining</h6>
+      <ul id="remaining-list" class="mdl-list"></ul>
+    </div>
   </div>
 
   <!-- Center: Map -->
-  <div id="svg-container"></div>
-
-  <!-- Right: Remaining List (Collapsible) -->
-  <div id="remaining-container" class="mdl-shadow--2dp">
-    <h6 style="padding-left: 16px;">Remaining</h6>
-    <ul id="remaining-list" class="mdl-list"></ul>
+  <div id="svg-container">
+    <div class="zoom-controls">
+      <button id="zoom-in" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+        <i class="material-icons">zoom_in</i>
+      </button>
+      <button id="zoom-out" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+        <i class="material-icons">zoom_out</i>
+      </button>
+      <button id="zoom-reset" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Reset zoom">
+        <i class="material-icons">refresh</i>
+      </button>
+      <button id="toggle-debug-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle debug overlay">
+        <i class="material-icons">bug_report</i>
+      </button>
+      <button id="toggle-sidebar-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle sidebar">
+        <i class="material-icons">list</i>
+      </button>
+    </div>
+    <div id="debug-panel"></div>
   </div>
 </div>
-
-
 </body>
+</html>
