@@ -1,924 +1,1108 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Perfect Country Match</title>
-    <!-- Include Material Design Lite CSS -->
-    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
-    <!-- Include Material Icons -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <!-- Include Material Design Lite JavaScript -->
-    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
-    <script src="leaderboard.js"></script>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
-        min-height: 100vh;
-        overflow: hidden; /* Prevent page scrolling on mobile */
-        -webkit-overflow-scrolling: touch;
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <title>Perfect Country Match</title>
+      <!-- Include Material Design Lite CSS -->
+      <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+      <!-- Include Material Icons -->
+      <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+      <!-- Include Material Design Lite JavaScript -->
+      <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+      <script src="leaderboard.js"></script>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+          min-height: 100vh;
+          overflow: hidden; /* Prevent page scrolling on mobile */
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .content {
+          display: flex;
+          flex-direction: row;
+          align-items: flex-start;
+          width: 100%;
+          margin-top: 0;
+          padding-top: 64px;
+          height: calc(100vh - 64px);
+          box-sizing: border-box;
+          /* Adjust height to account for score bar */
+        }
+
+        #score-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          width: 100%;
+          height: 64px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          z-index: 2000;
+          background: white;
+        }
+
+        /* left sidebar is now unified in #side-container */
+
+        .guessed-list {
+          list-style-type: none;
+          padding-left: 0;
+        }
+
+        .guessed-list li {
+          padding: 2px 0;
+        }
+
+        #svg-container {
+          flex: 1;
+          width: auto;
+          /* Container width - could be 100vw for full viewport width or any other value */
+          height: calc(100vh - 64px);
+          /* Container height - could be 100vh for full viewport height or any other value */
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          overflow: hidden;
+          /* Prevents scrollbars if SVG overflows */
+          position: relative;
+          touch-action: none;
+          -ms-touch-action: none;
+        }
+
+        #svg-container svg {
+          width: 100%;
+          height: 100%;
+          min-width: 100%;
+          min-height: 100%;
+          max-width: none;
+          max-height: none;
+          transition: none;
+          touch-action: none;
+          -ms-touch-action: none;
+          /* Disable transition during pinch and pan for crisp rendering */
+        }
+
+        .zoom-controls {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          z-index: 2100;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .zoom-controls button {
+          margin: 4px 0 0 0;
+          padding: 0 !important;
+          min-width: 0 !important;
+        }
+
+        #debug-panel {
+          position: absolute;
+          left: 10px;
+          bottom: 10px;
+          z-index: 2100;
+          background: rgba(255, 255, 255, 0.92);
+          color: #333;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          max-width: 260px;
+          white-space: pre-wrap;
+          pointer-events: none;
+        }
+
+        #toggle-sidebar-btn {
+          margin-bottom: 0;
+        }
+
+        #suggestions .selected {
+          background-color: lightblue;
+        }
+
+        #country-tooltip {
+          display: none;
+          position: absolute;
+          background-color: #fff;
+          border: 1px solid #ddd;
+          padding: 5px;
+          border-radius: 3px;
+          pointer-events: none;
+      z-index: 1000;
+          /* Prevents the tooltip from interfering with mouse events */
+        }
+
+        .autocomplete-wrapper {
+      position: relative;
+      width: 100%;
+  }
+
+  #suggestions {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border: 1px solid #e0e0e0;
+      border-top: none;
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0;
+      width: 100%;
+      box-sizing: border-box;
+      background-color: white;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1001;
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.26);
+  }
+
+  #suggestions:empty {
+      display: none;
+  }
+
+  #suggestions li {
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+  }
+
+  #suggestions li:hover {
+      background-color: #eeeeee;
+  }
+
+  #namePromptContainer,
+  #promptContainer {
+      display: none;
+      position: fixed;
+      top: 12%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background-color: white;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      box-shadow: none;
+      width: min(340px, calc(100% - 32px));
+      max-height: calc(100vh - 120px);
+      overflow: visible;
+  }
+
+  #backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+  }
+
+  input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      box-sizing: border-box;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12) inset;
+  }
+
+  button {
+      background-color: #ffffff;
+      color: #646464;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px 8px 0 0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+  }
+
+  button:hover {
+      background-color: #f5f5f5;
+  }
+
+  button:active {
+      background-color: #e0e0e0;
+  }
+
+  .material-icons {
+      vertical-align: middle;
+      margin-right: 8px;
+  }
+
+  /* Left unified sidebar */
+  #side-container {
+      width: 300px;
+      height: 100%;
+      background-color: white;
+      transition: width 0.3s ease, padding 0.3s ease;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+  }
+
+  #side-container.open {
+      width: 300px;
+  }
+
+  #side-container.collapsed {
+      width: 0;
+      min-width: 0;
+      padding-left: 0;
+      padding-right: 0;
+  }
+
+  #side-container .side-top,
+  #side-container .side-bottom {
+      overflow-y: auto;
+  }
+
+  #side-container .side-top {
+      flex: 1 1 50%;
+      padding-bottom: 8px;
+  }
+
+  #side-container .side-bottom {
+      flex: 1 1 50%;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 8px;
+  }
+
+  /* Keep toggle button inline with zoom controls */
+        /* Keep toggle buttons in the zoom-controls column so they align */
+        #toggle-sidebar-btn {
+          position: static;
+          margin-bottom: 0;
+        }
+
+        /* Target only your custom smaller buttons */
+      .zoom-controls .mdl-button--mini-fab {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 32px !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 4px !important;
+        line-height: 1 !important;
+        text-align: center !important;
+        text-indent: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
       }
 
-      .content {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        width: 100%;
-        margin-top: 0;
-        padding-top: 64px;
-        height: calc(100vh - 64px);
-        box-sizing: border-box;
-        /* Adjust height to account for score bar */
+      /* Shrink the Material Icon inside the smaller button */
+      .zoom-controls .mdl-button--mini-fab .material-icons {
+        font-size: 24px !important;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .zoom-controls .material-icons {
+        margin-right: 0 !important;
       }
 
-      #score-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 64px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        z-index: 2000;
-        background: white;
+      #remaining-list .mdl-list__item,
+      #remaining-list li {
+        font-size: 15px !important;    /* Shrinks the text slightly smaller than standard */
+        line-height: 18px !important;  /* Tightens the vertical line height */
+        min-height: 18px !important;   /* Reduces MDL's default bulky vertical padding */
+        padding-top: 1px !important;
+        padding-bottom: 1px !important;
       }
 
-      /* left sidebar is now unified in #side-container */
+      </style>
 
-      .guessed-list {
-        list-style-type: none;
-        padding-left: 0;
+      <script>
+      // --- GLOBAL VARIABLES ---
+      var score = 0;
+      var guessedCountries = [];
+      var lives = 3;
+      var maxScore = 0;
+      var pathIdentifier = '';
+      var selectedPath = null;
+      var countryTitles = []; // Moved to global so both Map and UI can see it
+      var playerName = 'Player';
+      var scoreAtFirstLifeLoss = null;
+      var scoreAtSecondLifeLoss = null;
+      var scoreAtLastLifeLoss = null;
+
+      // Debug options
+      const DEBUG_PANEL_ENABLED = false;
+      const STORAGE_KEY = 'perfect-country-match-state';
+
+      function saveGameState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            guessedCountries,
+            score,
+            lives,
+            scoreAtFirstLifeLoss,
+            scoreAtSecondLifeLoss,
+            scoreAtLastLifeLoss
+          }));
+        } catch (e) {
+          console.warn('Unable to save game state:', e);
+        }
       }
 
-      .guessed-list li {
-        padding: 4px 0;
+      function loadGameState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const state = JSON.parse(raw);
+          if (Array.isArray(state.guessedCountries)) guessedCountries = state.guessedCountries;
+          if (typeof state.score === 'number') score = state.score;
+          if (typeof state.lives === 'number') lives = state.lives;
+          if (typeof state.scoreAtFirstLifeLoss === 'number') scoreAtFirstLifeLoss = state.scoreAtFirstLifeLoss;
+          if (typeof state.scoreAtSecondLifeLoss === 'number') scoreAtSecondLifeLoss = state.scoreAtSecondLifeLoss;
+          if (typeof state.scoreAtLastLifeLoss === 'number') scoreAtLastLifeLoss = state.scoreAtLastLifeLoss;
+        } catch (e) {
+          console.warn('Unable to load saved game state:', e);
+        }
       }
 
-      #svg-container {
-        flex: 1;
-        width: auto;
-        /* Container width - could be 100vw for full viewport width or any other value */
-        height: calc(100vh - 64px);
-        /* Container height - could be 100vh for full viewport height or any other value */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-        /* Prevents scrollbars if SVG overflows */
-        position: relative;
-        touch-action: none;
-        -ms-touch-action: none;
-      }
+      // Zoom & Pan state
+      var currentScale = 1;
+      var currentTranslate = { x: 0, y: 0 };
+      let isDragging = false;
+      let mouseDownPos = { x: 0, y: 0 };
 
-      #svg-container svg {
-        width: 100%;
-        height: 100%;
-        min-width: 100%;
-        min-height: 100%;
-        max-width: none;
-        max-height: none;
-        transition: none;
-        touch-action: none;
-        -ms-touch-action: none;
-        /* Disable transition during pinch and pan for crisp rendering */
-      }
-
-      .zoom-controls {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 2100;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .zoom-controls button {
-        margin-bottom: 5px;
-      }
-
-      #debug-panel {
-        position: absolute;
-        left: 10px;
-        bottom: 10px;
-        z-index: 2100;
-        background: rgba(255, 255, 255, 0.92);
-        color: #333;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        padding: 10px;
-        font-size: 12px;
-        line-height: 1.4;
-        max-width: 260px;
-        white-space: pre-wrap;
-        pointer-events: none;
-      }
-
-      #toggle-sidebar-btn {
-        margin-bottom: 0;
-      }
-
-      #suggestions .selected {
-        background-color: lightblue;
-      }
-
-      #country-tooltip {
-        display: none;
-        position: absolute;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        padding: 5px;
-        border-radius: 3px;
-        pointer-events: none;
-		z-index: 1000;
-        /* Prevents the tooltip from interfering with mouse events */
-      }
-
-      #suggestions {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border: 1px solid #e0e0e0;
-    border-top: none;
-    position: absolute;
-    width: calc(100% - 40px);
-    box-sizing: border-box;
-    background-color: white;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1001;
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
-}
-
-#suggestions li {
-    padding: 12px 16px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#suggestions li:hover {
-    background-color: #eeeeee;
-}
-
-#namePromptContainer {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-    background-color: white;
-    padding: 24px;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
-    width: 300px;
-}
-
-#promptContainer {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-    background-color: white;
-    padding: 24px;
-    border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.26);
-    width: 300px;
-}
-
-#backdrop {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-}
-
-input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    box-sizing: border-box;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12) inset;
-}
-
-button {
-    background-color: #ffffff;
-    color: #646464;
-    border: none;
-    padding: 10px 20px;
-    margin: 10px 8px 0 0;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-button:hover {
-    background-color: #f5f5f5;
-}
-
-button:active {
-    background-color: #e0e0e0;
-}
-
-.material-icons {
-    vertical-align: middle;
-    margin-right: 8px;
-}
-
-/* Left unified sidebar */
-#side-container {
-    width: 300px;
-    height: 100%;
-    background-color: white;
-    transition: width 0.3s ease, padding 0.3s ease;
-    box-sizing: border-box;
-    padding: 8px 12px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#side-container.open {
-    width: 300px;
-}
-
-#side-container.collapsed {
-    width: 0;
-    min-width: 0;
-    padding-left: 0;
-    padding-right: 0;
-}
-
-#side-container .side-top,
-#side-container .side-bottom {
-    overflow-y: auto;
-}
-
-#side-container .side-top {
-    flex: 1 1 50%;
-    padding-bottom: 8px;
-}
-
-#side-container .side-bottom {
-    flex: 1 1 50%;
-    border-top: 1px solid #e0e0e0;
-    padding-top: 8px;
-}
-
-/* Keep toggle button inline with zoom controls */
-      /* Keep toggle buttons in the zoom-controls column so they align */
-      #toggle-sidebar-btn {
-        position: static;
-        margin-bottom: 0;
-      }
-
-    </style>
-
-    <script>
-		// --- GLOBAL VARIABLES ---
-		var score = 0;
-		var guessedCountries = [];
-		var lives = 3;
-		var maxScore = 0;
-		var pathIdentifier = '';
-		var selectedPath = null;
-		var countryTitles = []; // Moved to global so both Map and UI can see it
-		var playerName = 'Player';
-		var scoreAtFirstLifeLoss = null;
-		var scoreAtSecondLifeLoss = null;
-		var scoreAtLastLifeLoss = null;
-
-		// Debug options
-		const DEBUG_PANEL_ENABLED = true;
-
-		// Zoom & Pan state
-		var currentScale = 1;
-		var currentTranslate = { x: 0, y: 0 };
-		let isDragging = false;
-		let mouseDownPos = { x: 0, y: 0 };
-
-		// --- 1. CORE UI LOGIC (Runs immediately) ---
-		document.addEventListener('DOMContentLoaded', function() {
-			updateScore();
-			
-			// Attach OK button logic
-			document.getElementById('okButton').onclick = handleGuess;
-
-			// Attach Cancel button logic
-			document.getElementById('cancelButton').onclick = closePrompt;
-
-			// Attach Backdrop logic (click outside to close)
-			document.getElementById('backdrop').onclick = closePrompt;
-
-			// Attach Name Prompt logic
-			document.getElementById('nameOkButton').onclick = handleNameOk;
-			document.getElementById('nameCancelButton').onclick = handleNameCancel;
-
-			// Attach Autocomplete logic
-			setupAutocomplete();
-
-			// Attach Sidebar Toggle
-      document.getElementById('toggle-sidebar-btn').onclick = toggleSidebar;
-      document.getElementById('toggle-debug-btn').onclick = toggleDebugPanel;
-
-      if (!DEBUG_PANEL_ENABLED) {
-        document.getElementById('debug-panel').style.display = 'none';
-      }
-
-      fetch('world_map.svg')
-        .then(response => response.text())
-				.then(data => {
-					const container = document.getElementById('svg-container');
-					const controls = container.querySelector('.zoom-controls');
-					const debugPanel = container.querySelector('#debug-panel');
-					const parser = new DOMParser();
-					const svgDoc = parser.parseFromString(data, 'image/svg+xml');
-					const svgElement = svgDoc.documentElement;
-					svgElement.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-					svgElement.style.display = 'block';
-					svgElement.style.touchAction = 'none';
-					svgElement.style.msTouchAction = 'none';
-					const zoomGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-					while (svgElement.firstChild) {
-						zoomGroup.appendChild(svgElement.firstChild);
-					}
-					zoomGroup.setAttribute('id', 'zoom-group');
-					svgElement.appendChild(zoomGroup);
-					container.innerHTML = '';
-					container.appendChild(svgElement);
-					container.appendChild(controls);
-					if (debugPanel) container.appendChild(debugPanel);
-					setupMapInteractions(); 
-				})
-				.catch(err => {
-					console.error("Error loading SVG:", err);
-					showTemporaryMessage("Failed to load map file.");
-				});
-		});
-
-		// --- 2. MAP LOGIC (Runs after fetch) ---
-    /*
-     * setupMapInteractions()
-     * - Initialize country path events (hover, click) and tooltips
-     * - Populate `countryTitles` and update UI lists
-     * - Calls `setupZoomAndPan()` to attach map zoom/pan handlers
-     */
-    function setupMapInteractions() {
-		// locate the SVG element we injected into the container
-		var svgElement = document.querySelector('#svg-container svg');
-		// if the SVG hasn't been loaded for some reason, bail out
-		if (!svgElement) return;
-		
-		// tag the SVG for easier debugging and CSS hooks
-		svgElement.setAttribute('id', 'svg-pan-zoom'); 
-		// gather all country path elements for interaction wiring
-		var paths = svgElement.querySelectorAll('path');
-
-			paths.forEach(function(path) {
-				path.style.vectorEffect = 'non-scaling-stroke';
-				path.setAttribute('vector-effect', 'non-scaling-stroke');
-				path.style.touchAction = 'none';
-				path.style.msTouchAction = 'none';
-				var title = path.getAttribute('title');
-				if (title && !countryTitles.includes(title)) countryTitles.push(title);
-				let pathMouseDownPos = null;
-
-				path.addEventListener('mousedown', function(event) {
-					pathMouseDownPos = { x: event.clientX, y: event.clientY };
-				});
-
-				path.addEventListener('click', function(event) {
-					if (pathMouseDownPos && Math.hypot(event.clientX - pathMouseDownPos.x, event.clientY - pathMouseDownPos.y) > 5) {
-						pathMouseDownPos = null;
-						return;
-					}
-					if (this.style.fill === 'green') return;
-					
-					selectedPath = this;
-					pathIdentifier = this.getAttribute('title').toLowerCase();
-					
-					document.getElementById('promptContainer').style.display = 'block';
-					document.getElementById('backdrop').style.display = 'block';
-					document.getElementById('autocomplete').focus();
-				});
-
-				path.addEventListener('pointerenter', function(event) {
-					hoveredCountryPath = this;
-					// this._originalNextSibling = this.nextSibling;
-					// this.parentNode.appendChild(this);
-					// this.style.strokeWidth = (2 / currentScale) + 'px';
-					this.style.stroke = "darkblue";
-          if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = "rgba(200, 200, 200, 0.7)"; // Add subtle background for better readability
-					var tooltip = document.getElementById('country-tooltip');
-					tooltip.textContent = this.style.fill === 'green' ? this.getAttribute('title') : 'Not guessed';
-					tooltip.style.display = 'block';
-					tooltip.style.left = (event.clientX + 10) + 'px';
-					tooltip.style.top = (event.clientY + 10) + 'px';
-				});
-
-				path.addEventListener('pointermove', function(event) {
-					var tooltip = document.getElementById('country-tooltip');
-					tooltip.style.left = (event.clientX + 10) + 'px';
-					tooltip.style.top = (event.clientY + 10) + 'px';
-				});
-
-				path.addEventListener('pointerleave', function() {
-					this.style.strokeWidth = '';
-					this.style.stroke = '';
-          if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = '';
-					// if (this._originalNextSibling) {
-					// 	this.parentNode.insertBefore(this, this._originalNextSibling);
-					// } else {
-					// 	this.parentNode.appendChild(this);
-					// }
-					document.getElementById('country-tooltip').style.display = 'none';
-				});
-			});
-
-			maxScore = countryTitles.length;
-			updateScore();
-			updateRemainingList();
-			setupZoomAndPan(svgElement);
-		}
-
-		// --- 3. HELPER FUNCTIONS ---
-
-		function handleGuess() {
-			const input = document.getElementById('autocomplete');
-			const userGuess = input.value.trim().toLowerCase();
-
-			if (!userGuess) {
-				showTemporaryMessage("Type a name first!");
-				return;
-			}
-
-			if (userGuess === pathIdentifier) {
-				showTemporaryMessage("Correct!");
-				selectedPath.style.fill = 'green';
-				score++;
-				guessedCountries.push(selectedPath.getAttribute('title'));
-				updateScore();
-				updateGuessedList();
-				updateRemainingList();
-				closePrompt();
-			} else if (!countryTitles.some(c => c.toLowerCase() === userGuess)) {
-				showTemporaryMessage("Invalid country! Please select from the suggestions.");
-			} else {
-				if (lives === 3) scoreAtFirstLifeLoss = score;
-				else if (lives === 2) scoreAtSecondLifeLoss = score;
-				else if (lives === 1) scoreAtLastLifeLoss = score;
-				showTemporaryMessage("Incorrect!");
-				selectedPath.style.fill = 'red';
-				lives--;
-				updateScore();
-				if (lives <= 0) {
-					showTemporaryMessage("Game Over!");
-					recordGameOverEntry();
-				}
-				// Reset color after 1 second if wrong
-				setTimeout(() => { if(selectedPath.style.fill !== 'green') selectedPath.style.fill = ''; }, 1000);
-				closePrompt();
-			}
-		}
-
-		function setupAutocomplete() {
-			const input = document.getElementById('autocomplete');
-			const suggestions = document.getElementById('suggestions');
-			let selectedSuggestionIndex = -1;
-
-			input.addEventListener('input', function() {
-				const val = this.value.toLowerCase();
-				suggestions.innerHTML = '';
-				selectedSuggestionIndex = -1;
-				if (val.length < 2) return;
-
-				const matches = countryTitles.filter(t => t.toLowerCase().includes(val));
-				matches.forEach((m, i) => {
-					const li = document.createElement('li');
-					li.textContent = m;
-					li.onclick = () => {
-						input.value = m;
-						suggestions.innerHTML = '';
-						selectedSuggestionIndex = -1;
-					};
-					suggestions.appendChild(li);
-				});
-			});
-
-			// Handle arrow keys and Enter in input
-			input.addEventListener('keydown', (e) => {
-				const items = suggestions.querySelectorAll('li');
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
-					highlightSuggestion(items, selectedSuggestionIndex);
-				} else if (e.key === 'ArrowUp') {
-					e.preventDefault();
-					selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
-					highlightSuggestion(items, selectedSuggestionIndex);
-				} else if (e.key === 'Enter') {
-					if (selectedSuggestionIndex >= 0 && items[selectedSuggestionIndex]) {
-						e.preventDefault();
-						input.value = items[selectedSuggestionIndex].textContent;
-						suggestions.innerHTML = '';
-						selectedSuggestionIndex = -1;
-					} else {
-						handleGuess();
-					}
-				}
-			});
-		}
-
-		function highlightSuggestion(items, index) {
-			items.forEach((item, i) => {
-				item.classList.toggle('selected', i === index);
-			});
-		}
-
-		function closePrompt() {
-			document.getElementById('promptContainer').style.display = 'none';
-			document.getElementById('backdrop').style.display = 'none';
-			document.getElementById('autocomplete').value = '';
-			document.getElementById('suggestions').innerHTML = '';
-		}
-
-    /*
-     * setupZoomAndPan(svgElement)
-     * - Handles wheel zoom, pinch-to-zoom, and drag panning for the SVG map.
-     * - Uses screen/client coordinates for gesture math and applies transforms
-     *   to the `#zoom-group` via `currentScale` and `currentTranslate`.
-     * - Stores the pinch anchor in CONTENT (world) coordinates so that
-     *   lifting/adding fingers does not cause jumps when the scale changes.
-     */
-    function setupZoomAndPan(svgElement) {
-  // container element that holds the SVG and UI chrome
-  const container = document.getElementById('svg-container');
-    
-  // the <g id="zoom-group"> node which receives the transform for zoom/pan
-  const zoomGroup = svgElement.querySelector('#zoom-group');
-
-    // Convert client (screen) coordinates into SVG user/world coordinates
-    function getSvgPoint(clientX, clientY) {
-        const pt = svgElement.createSVGPoint();
-        pt.x = clientX;
-        pt.y = clientY;
-        return pt.matrixTransform(svgElement.getScreenCTM().inverse());
-    }
-
-    // Apply current transform state to the zoomGroup (scale + translate)
-    const update = () => {
-        if (!zoomGroup) return;
-        zoomGroup.setAttribute('transform', `matrix(${currentScale}, 0, 0, ${currentScale}, ${currentTranslate.x}, ${currentTranslate.y})`);
-        updateDebugPanel();
-    };
-
-    // Update the debug overlay with current transform and size information
-    function updateDebugPanel() {
-        const debug = document.getElementById('debug-panel');
-        if (!debug) return;
-        const containerRect = container.getBoundingClientRect();
-        const svgRect = svgElement.getBoundingClientRect();
-        debug.textContent =
-            `Zoom: ${currentScale.toFixed(2)}\n` +
-            `Translate: ${currentTranslate.x.toFixed(0)}, ${currentTranslate.y.toFixed(0)}\n` +
-            `Container: ${Math.round(containerRect.width)}x${Math.round(containerRect.height)}\n` +
-            `SVG: ${Math.round(svgRect.width)}x${Math.round(svgRect.height)}\n` +
-            `SVG offset: ${Math.round(svgRect.left)}, ${Math.round(svgRect.top)}`;
-    }
-
-    // Zoom Buttons (center of container)
-    // These buttons zoom toward the center point of the visible container
-    const zoomButtonClick = (factor) => {
-        const rect = container.getBoundingClientRect();
-        const center = getSvgPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        zoomAt(center.x, center.y, factor);
-    };
-
-    document.getElementById('zoom-in').onclick = () => zoomButtonClick(1.3);
-    document.getElementById('zoom-out').onclick = () => zoomButtonClick(1 / 1.3);
-    document.getElementById('zoom-reset').onclick = () => {
-        currentScale = 1;
-        currentTranslate = { x: 0, y: 0 };
-        update();
-    };
-
-    // The Core Zoom Math
-    // zoomAt keeps the specified SVG point anchored while scaling
-    function zoomAt(screenX, screenY, factor) {
-        const newScale = currentScale * factor;
+      // --- 1. CORE UI LOGIC (Runs immediately) ---
+      document.addEventListener('DOMContentLoaded', function() {
+        loadGameState();
+        updateScore();
         
-        // Don't zoom out too far or in too much
-        if (newScale < 0.5 || newScale > 40) return;
+        // Attach OK button logic
+        document.getElementById('okButton').onclick = handleGuess;
 
-        // Calculate the current world coordinate under the screen point
-        const worldX = (screenX - currentTranslate.x) / currentScale;
-        const worldY = (screenY - currentTranslate.y) / currentScale;
+        // Attach Cancel button logic
+        document.getElementById('cancelButton').onclick = closePrompt;
 
-        currentScale = newScale;
-        currentTranslate.x = screenX - worldX * currentScale;
-        currentTranslate.y = screenY - worldY * currentScale;
+        // Attach Backdrop logic (click outside to close)
+        document.getElementById('backdrop').onclick = closePrompt;
 
-        update();
-    }
+        // Attach Name Prompt logic
+        document.getElementById('nameOkButton').onclick = handleNameOk;
+        document.getElementById('nameCancelButton').onclick = handleNameCancel;
 
-    // Mouse Wheel Event
-    // Zoom towards the mouse cursor (desktop scroll wheel)
-    svgElement.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const point = getSvgPoint(e.clientX, e.clientY);
-        const zoomSpeed = 0.1;
-        const delta = -Math.sign(e.deltaY);
-        const factor = Math.pow(1 + zoomSpeed, delta);
-        zoomAt(point.x, point.y, factor);
-    }, { passive: false });
+        // Attach Autocomplete logic
+        setupAutocomplete();
 
-      // Touch: pinch to zoom and one-finger pan
-      // Disable default touch actions on the container so we can handle pinch/pan
-      container.style.touchAction = 'none';
+        // Attach Sidebar Toggle
+        document.getElementById('toggle-sidebar-btn').onclick = toggleSidebar;
+        document.getElementById('toggle-debug-btn').onclick = toggleDebugPanel;
+        document.getElementById('restart-btn').onclick = confirmRestart;
 
-      let isTouchPinching = false;
-      let pinchStartDist = 0;
-      let pinchStartScale = 1;
-      let pinchAnchor = null;
-      let isTouchPanning = false;
-      let touchPanStart = { x: 0, y: 0, translateX: 0, translateY: 0 };
+        if (!DEBUG_PANEL_ENABLED) {
+          document.getElementById('debug-panel').style.display = 'none';
+        }
 
-      // Helper: distance between two touch points (screen coordinates)
-      function dist(t0, t1) {
-        return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        fetch('world_map.svg')
+          .then(response => response.text())
+          .then(data => {
+            const container = document.getElementById('svg-container');
+            const controls = container.querySelector('.zoom-controls');
+            const debugPanel = container.querySelector('#debug-panel');
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(data, 'image/svg+xml');
+            const svgElement = svgDoc.documentElement;
+            svgElement.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+            svgElement.style.display = 'block';
+            svgElement.style.touchAction = 'none';
+            svgElement.style.msTouchAction = 'none';
+            const zoomGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            while (svgElement.firstChild) {
+              zoomGroup.appendChild(svgElement.firstChild);
+            }
+            zoomGroup.setAttribute('id', 'zoom-group');
+            svgElement.appendChild(zoomGroup);
+            container.innerHTML = '';
+            container.appendChild(svgElement);
+            container.appendChild(controls);
+            if (debugPanel) container.appendChild(debugPanel);
+            setupMapInteractions();
+            restorePathColors();
+            updateGuessedList();
+            updateRemainingList();
+          })
+          .catch(err => {
+            console.error("Error loading SVG:", err);
+            showTemporaryMessage("Failed to load map file.");
+          });
+      });
+
+      // --- 2. MAP LOGIC (Runs after fetch) ---
+      /*
+      * setupMapInteractions()
+      * - Initialize country path events (hover, click) and tooltips
+      * - Populate `countryTitles` and update UI lists
+      * - Calls `setupZoomAndPan()` to attach map zoom/pan handlers
+      */
+      function setupMapInteractions() {
+      // locate the SVG element we injected into the container
+      var svgElement = document.querySelector('#svg-container svg');
+      // if the SVG hasn't been loaded for some reason, bail out
+      if (!svgElement) return;
+      
+      // tag the SVG for easier debugging and CSS hooks
+      svgElement.setAttribute('id', 'svg-pan-zoom'); 
+      // gather all country path elements for interaction wiring
+      var paths = svgElement.querySelectorAll('path');
+
+        paths.forEach(function(path) {
+          path.style.vectorEffect = 'non-scaling-stroke';
+          path.setAttribute('vector-effect', 'non-scaling-stroke');
+          path.style.touchAction = 'none';
+          path.style.msTouchAction = 'none';
+          var title = path.getAttribute('title');
+          if (title && !countryTitles.includes(title)) countryTitles.push(title);
+          let pathMouseDownPos = null;
+
+          path.addEventListener('pointerdown', function(event) {
+            pathMouseDownPos = { x: event.clientX, y: event.clientY };
+          });
+
+          path.addEventListener('click', function(event) {
+            if (pathMouseDownPos && Math.hypot(event.clientX - pathMouseDownPos.x, event.clientY - pathMouseDownPos.y) > 10) {
+              pathMouseDownPos = null;
+              return;
+            }
+            if (this.style.fill === 'green') return;
+            
+            selectedPath = this;
+            if (this.style.fill !== 'red') {
+              this.style.stroke = 'darkblue';
+              this.style.fill = 'rgba(200, 200, 200, 0.7)';
+            }
+            pathIdentifier = this.getAttribute('title').toLowerCase();
+            document.getElementById('country-tooltip').style.display = 'none';
+            
+            document.getElementById('promptContainer').style.display = 'block';
+            document.getElementById('backdrop').style.display = 'block';
+            document.getElementById('autocomplete').focus();
+          });
+
+          path.addEventListener('pointerenter', function(event) {
+            if (event.pointerType === 'touch') return;
+            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
+            hoveredCountryPath = this;
+            this.style.stroke = "darkblue";
+            if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = "rgba(200, 200, 200, 0.7)"; // Add subtle background for better readability
+            var tooltip = document.getElementById('country-tooltip');
+            tooltip.textContent = this.style.fill === 'green' ? this.getAttribute('title') : 'Not guessed';
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.clientX + 10) + 'px';
+            tooltip.style.top = (event.clientY + 10) + 'px';
+          });
+
+          path.addEventListener('pointermove', function(event) {
+            if (event.pointerType === 'touch') return;
+            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
+            var tooltip = document.getElementById('country-tooltip');
+            tooltip.style.left = (event.clientX + 10) + 'px';
+            tooltip.style.top = (event.clientY + 10) + 'px';
+          });
+
+          path.addEventListener('pointerleave', function(event) {
+            if (event.pointerType === 'touch') return;
+            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
+            this.style.strokeWidth = '';
+            this.style.stroke = '';
+            if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = '';
+            document.getElementById('country-tooltip').style.display = 'none';
+          });
+        });
+
+        maxScore = countryTitles.length;
+        updateScore();
+        updateRemainingList();
+        setupZoomAndPan(svgElement);
       }
 
-      svgElement.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-          e.preventDefault();
-          isTouchPinching = true;
-          isTouchPanning = false;
-          pinchStartDist = dist(e.touches[0], e.touches[1]);
-          pinchStartScale = currentScale;
-          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          const midSvg = getSvgPoint(midClientX, midClientY);
-          pinchAnchor = {
-            x: (midSvg.x - currentTranslate.x) / currentScale,
-            y: (midSvg.y - currentTranslate.y) / currentScale
-          };
-        } else if (e.touches.length === 1) {
-          isTouchPinching = false;
-          isTouchPanning = true;
-          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
-          touchPanStart = {
-            x: point.x,
-            y: point.y,
-            translateX: currentTranslate.x,
-            translateY: currentTranslate.y
-          };
-        }
-      }, { passive: false });
+      // --- 3. HELPER FUNCTIONS ---
 
-      svgElement.addEventListener('touchmove', (e) => {
-        if (isTouchPinching && e.touches.length === 2) {
-          e.preventDefault();
-          const newDist = dist(e.touches[0], e.touches[1]);
-          const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          const midSvg = getSvgPoint(midClientX, midClientY);
-          const desiredScale = pinchStartScale * (newDist / pinchStartDist);
-          const clampedScale = Math.max(0.5, Math.min(40, desiredScale));
-          if (!pinchAnchor) return;
-          currentScale = clampedScale;
-          currentTranslate.x = midSvg.x - pinchAnchor.x * currentScale;
-          currentTranslate.y = midSvg.y - pinchAnchor.y * currentScale;
-          update();
-        } else if (isTouchPanning && e.touches.length === 1) {
-          e.preventDefault();
-          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
-          currentTranslate.x = touchPanStart.translateX + (point.x - touchPanStart.x);
-          currentTranslate.y = touchPanStart.translateY + (point.y - touchPanStart.y);
-          update();
-        }
-      }, { passive: false });
+      function handleGuess() {
+        const input = document.getElementById('autocomplete');
+        const userGuess = input.value.trim().toLowerCase();
 
-      const finishTouchGesture = (e) => {
-        if (e.touches.length < 2) {
-          isTouchPinching = false;
-          pinchAnchor = null;
+        if (!userGuess) {
+          showTemporaryMessage("Type a name first!");
+          return;
         }
-        if (e.touches.length === 1) {
-          isTouchPanning = true;
-          const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
-          touchPanStart = {
-            x: point.x,
-            y: point.y,
-            translateX: currentTranslate.x,
-            translateY: currentTranslate.y
-          };
+
+        if (userGuess === pathIdentifier) {
+          showTemporaryMessage("Correct!");
+          selectedPath.style.fill = 'green';
+          score++;
+          guessedCountries.push(selectedPath.getAttribute('title'));
+          updateScore();
+          updateGuessedList();
+          updateRemainingList();
+          saveGameState();
+          closePrompt();
+        } else if (!countryTitles.some(c => c.toLowerCase() === userGuess)) {
+          showTemporaryMessage("Invalid country! Please select from the suggestions.");
+        } else {
+          if (lives === 3) scoreAtFirstLifeLoss = score;
+          else if (lives === 2) scoreAtSecondLifeLoss = score;
+          else if (lives === 1) scoreAtLastLifeLoss = score;
+          showTemporaryMessage("Incorrect!");
+          selectedPath.style.fill = 'red';
+          lives--;
+          updateScore();
+          saveGameState();
+          if (lives <= 0) {
+            showTemporaryMessage("Game Over!");
+            recordGameOverEntry();
+          }
+          // Reset color after 1 second if wrong
+          setTimeout(() => { if(selectedPath.style.fill !== 'green') selectedPath.style.fill = ''; }, 1000);
+          closePrompt();
         }
-        if (e.touches.length === 0) {
-          isTouchPanning = false;
+      }
+
+      function setupAutocomplete() {
+        const input = document.getElementById('autocomplete');
+        const suggestions = document.getElementById('suggestions');
+        let selectedSuggestionIndex = -1;
+
+        input.addEventListener('input', function() {
+          const val = this.value.toLowerCase();
+          suggestions.innerHTML = '';
+          selectedSuggestionIndex = -1;
+          if (val.length < 2) return;
+
+          const matches = countryTitles.filter(t => t.toLowerCase().includes(val));
+          matches.forEach((m, i) => {
+            const li = document.createElement('li');
+            li.textContent = m;
+            li.onclick = () => {
+              input.value = m;
+              suggestions.innerHTML = '';
+              selectedSuggestionIndex = -1;
+            };
+            suggestions.appendChild(li);
+          });
+        });
+
+        // Handle arrow keys and Enter in input
+        input.addEventListener('keydown', (e) => {
+          const items = suggestions.querySelectorAll('li');
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, items.length - 1);
+            highlightSuggestion(items, selectedSuggestionIndex);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+            highlightSuggestion(items, selectedSuggestionIndex);
+          } else if (e.key === 'Enter') {
+            if (selectedSuggestionIndex >= 0 && items[selectedSuggestionIndex]) {
+              e.preventDefault();
+              input.value = items[selectedSuggestionIndex].textContent;
+              suggestions.innerHTML = '';
+              selectedSuggestionIndex = -1;
+            } else {
+              handleGuess();
+            }
+          }
+        });
+      }
+
+      function highlightSuggestion(items, index) {
+        items.forEach((item, i) => {
+          item.classList.toggle('selected', i === index);
+        });
+      }
+
+      function clearSelectedPathHighlight() {
+        if (!selectedPath) return;
+        if (selectedPath.style.fill !== 'green' && selectedPath.style.fill !== 'red') {
+          selectedPath.style.stroke = '';
+          selectedPath.style.fill = '';
         }
+        selectedPath = null;
+      }
+
+      function closePrompt() {
+        document.getElementById('promptContainer').style.display = 'none';
+        document.getElementById('backdrop').style.display = 'none';
+        document.getElementById('autocomplete').value = '';
+        document.getElementById('suggestions').innerHTML = '';
+        clearSelectedPathHighlight();
+      }
+
+      function confirmRestart() {
+        if (!window.confirm('Restart the game? This will clear your current progress.')) return;
+        resetGame();
+      }
+
+      function resetGame() {
+        const paths = document.querySelectorAll('#svg-container svg path');
+        paths.forEach(path => {
+          path.style.stroke = '';
+          if (path.style.fill === 'green' || path.style.fill === 'red') {
+            path.style.fill = '';
+          }
+        });
+        guessedCountries = [];
+        score = 0;
+        lives = 3;
+        pathIdentifier = '';
+        selectedPath = null;
+        scoreAtFirstLifeLoss = null;
+        scoreAtSecondLifeLoss = null;
+        scoreAtLastLifeLoss = null;
+        updateScore();
+        updateGuessedList();
+        updateRemainingList();
+        saveGameState();
+        closePrompt();
+      }
+
+      /*
+      * setupZoomAndPan(svgElement)
+      * - Handles wheel zoom, pinch-to-zoom, and drag panning for the SVG map.
+      * - Uses screen/client coordinates for gesture math and applies transforms
+      *   to the `#zoom-group` via `currentScale` and `currentTranslate`.
+      * - Stores the pinch anchor in CONTENT (world) coordinates so that
+      *   lifting/adding fingers does not cause jumps when the scale changes.
+      */
+      function setupZoomAndPan(svgElement) {
+    // container element that holds the SVG and UI chrome
+    const container = document.getElementById('svg-container');
+      
+    // the <g id="zoom-group"> node which receives the transform for zoom/pan
+    const zoomGroup = svgElement.querySelector('#zoom-group');
+    const svgBounds = zoomGroup.getBBox();
+    const svgWidth = svgElement.viewBox.baseVal.width || svgBounds.width;
+    const svgHeight = svgElement.viewBox.baseVal.height || svgBounds.height;
+
+      // Convert client (screen) coordinates into SVG user/world coordinates
+      function getSvgPoint(clientX, clientY) {
+          const pt = svgElement.createSVGPoint();
+          pt.x = clientX;
+          pt.y = clientY;
+          return pt.matrixTransform(svgElement.getScreenCTM().inverse());
+      }
+
+      // Apply current transform state to the zoomGroup (scale + translate)
+      const update = () => {
+          if (!zoomGroup) return;
+          //clampTranslate();
+          zoomGroup.setAttribute('transform', `matrix(${currentScale}, 0, 0, ${currentScale}, ${currentTranslate.x}, ${currentTranslate.y})`);
+          updateDebugPanel();
       };
 
-      svgElement.addEventListener('touchend', finishTouchGesture);
-      svgElement.addEventListener('touchcancel', finishTouchGesture);
+      function clampTranslate() {
+        const rect = container.getBoundingClientRect();
+        
+        // Calculate the actual screen dimensions of the map at the current zoom level
+        const scaledWidth = svgWidth * currentScale;
+        const scaledHeight = svgHeight * currentScale;
 
-    // Panning (Dragging)
-    let isPanning = false;
-    let start = { x: 0, y: 0, translateX: 0, translateY: 0 };
+        // HORIZONTAL CLAMPING (X-Axis)
+        if (scaledWidth > rect.width) {
+          // If the map is wider than the screen, allow dragging 
+          // between the negative drag limit (minX) and exactly 0
+          const minX = rect.width - scaledWidth;
+          currentTranslate.x = Math.min(Math.max(currentTranslate.x, minX), 0);
+        } else {
+          // If the map is smaller than the screen, firmly lock it in the center and prevent dragging
+          currentTranslate.x = (rect.width - scaledWidth) / 2;
+        }
 
-    container.onmousedown = (e) => {
-        isPanning = true;
-        container.style.cursor = 'grabbing';
-        const point = getSvgPoint(e.clientX, e.clientY);
-        start = {
-          x: point.x,
-          y: point.y,
-          translateX: currentTranslate.x,
-          translateY: currentTranslate.y
+        // VERTICAL CLAMPING (Y-Axis)
+        if (scaledHeight > rect.height) {
+          // If the map is taller than the screen, allow dragging 
+          // between the negative drag limit (minY) and exactly 0
+          const minY = rect.height - scaledHeight;
+          currentTranslate.y = Math.min(Math.max(currentTranslate.y, minY), 0);
+        } else {
+          // If the map is shorter than the screen, firmly lock it in the center
+          currentTranslate.y = (rect.height - scaledHeight) / 2;
+        }
+      }
+
+      // Update the debug overlay with current transform and size information
+      function updateDebugPanel() {
+          const debug = document.getElementById('debug-panel');
+          if (!debug) return;
+          const containerRect = container.getBoundingClientRect();
+          const svgRect = svgElement.getBoundingClientRect();
+          debug.textContent =
+              `Zoom: ${currentScale.toFixed(2)}\n` +
+              `Translate: ${currentTranslate.x.toFixed(0)}, ${currentTranslate.y.toFixed(0)}\n` +
+              `Container: ${Math.round(containerRect.width)}x${Math.round(containerRect.height)}\n` +
+              `SVG: ${Math.round(svgRect.width)}x${Math.round(svgRect.height)}\n` +
+              `SVG offset: ${Math.round(svgRect.left)}, ${Math.round(svgRect.top)}`;
+      }
+
+      // Zoom Buttons (center of container)
+      // These buttons zoom toward the center point of the visible container
+      const zoomButtonClick = (factor) => {
+          const rect = container.getBoundingClientRect();
+          const center = getSvgPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          zoomAt(center.x, center.y, factor);
+      };
+
+      document.getElementById('zoom-in').onclick = () => zoomButtonClick(1.3);
+      document.getElementById('zoom-out').onclick = () => zoomButtonClick(1 / 1.3);
+      document.getElementById('zoom-reset').onclick = () => {
+          currentScale = 1;
+          currentTranslate = { x: 0, y: 0 };
+          update();
+      };
+
+      // The Core Zoom Math
+      // zoomAt keeps the specified SVG point anchored while scaling
+      function zoomAt(screenX, screenY, factor) {
+          const newScale = currentScale * factor;
+          
+          // Don't zoom out too far or in too much
+          if (newScale < 0.5 || newScale > 100) return;
+
+          // Calculate the current world coordinate under the screen point
+          const worldX = (screenX - currentTranslate.x) / currentScale;
+          const worldY = (screenY - currentTranslate.y) / currentScale;
+
+          currentScale = newScale;
+          currentTranslate.x = screenX - worldX * currentScale;
+          currentTranslate.y = screenY - worldY * currentScale;
+
+          update();
+      }
+
+      // Mouse Wheel Event
+      // Zoom towards the mouse cursor (desktop scroll wheel)
+      svgElement.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const point = getSvgPoint(e.clientX, e.clientY);
+          const zoomSpeed = 0.1;
+          const delta = -Math.sign(e.deltaY);
+          const factor = Math.pow(1 + zoomSpeed, delta);
+          zoomAt(point.x, point.y, factor);
+      }, { passive: false });
+
+        // Touch: pinch to zoom and one-finger pan
+        // Disable default touch actions on the container so we can handle pinch/pan
+        container.style.touchAction = 'none';
+
+        let isTouchPinching = false;
+        let pinchStartDist = 0;
+        let pinchStartScale = 1;
+        let pinchAnchor = null;
+        let isTouchPanning = false;
+        let touchPanStart = { x: 0, y: 0, translateX: 0, translateY: 0 };
+
+        // Helper: distance between two touch points (screen coordinates)
+        function dist(t0, t1) {
+          return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        }
+
+        svgElement.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 2) {
+            e.preventDefault();
+            isTouchPinching = true;
+            isTouchPanning = false;
+            pinchStartDist = dist(e.touches[0], e.touches[1]);
+            pinchStartScale = currentScale;
+            const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const midSvg = getSvgPoint(midClientX, midClientY);
+            pinchAnchor = {
+              x: (midSvg.x - currentTranslate.x) / currentScale,
+              y: (midSvg.y - currentTranslate.y) / currentScale
+            };
+          } else if (e.touches.length === 1) {
+            isTouchPinching = false;
+            isTouchPanning = true;
+            const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+            touchPanStart = {
+              x: point.x,
+              y: point.y,
+              translateX: currentTranslate.x,
+              translateY: currentTranslate.y
+            };
+          }
+        }, { passive: false });
+
+        svgElement.addEventListener('touchmove', (e) => {
+          if (isTouchPinching && e.touches.length === 2) {
+            e.preventDefault();
+            const newDist = dist(e.touches[0], e.touches[1]);
+            const midClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const midSvg = getSvgPoint(midClientX, midClientY);
+            const desiredScale = pinchStartScale * (newDist / pinchStartDist);
+            const clampedScale = Math.max(0.5, Math.min(100, desiredScale));
+            if (!pinchAnchor) return;
+            currentScale = clampedScale;
+            currentTranslate.x = midSvg.x - pinchAnchor.x * currentScale;
+            currentTranslate.y = midSvg.y - pinchAnchor.y * currentScale;
+            update();
+          } else if (isTouchPanning && e.touches.length === 1) {
+            e.preventDefault();
+            const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+            currentTranslate.x = touchPanStart.translateX + (point.x - touchPanStart.x);
+            currentTranslate.y = touchPanStart.translateY + (point.y - touchPanStart.y);
+            update();
+          }
+        }, { passive: false });
+
+        const finishTouchGesture = (e) => {
+          if (e.touches.length < 2) {
+            isTouchPinching = false;
+            pinchAnchor = null;
+          }
+          if (e.touches.length === 1) {
+            isTouchPanning = true;
+            const point = getSvgPoint(e.touches[0].clientX, e.touches[0].clientY);
+            touchPanStart = {
+              x: point.x,
+              y: point.y,
+              translateX: currentTranslate.x,
+              translateY: currentTranslate.y
+            };
+          }
+          if (e.touches.length === 0) {
+            isTouchPanning = false;
+          }
         };
-    };
 
-    window.onmousemove = (e) => {
-        if (!isPanning) return;
-        const point = getSvgPoint(e.clientX, e.clientY);
-        currentTranslate.x = start.translateX + (point.x - start.x);
-        currentTranslate.y = start.translateY + (point.y - start.y);
-        update();
-    };
+        svgElement.addEventListener('touchend', finishTouchGesture);
+        svgElement.addEventListener('touchcancel', finishTouchGesture);
 
-    window.onmouseup = () => {
-        isPanning = false;
-        container.style.cursor = 'default';
-    };
-    
-    update();
-}
+      // Panning (Dragging)
+      let isPanning = false;
+      let start = { x: 0, y: 0, translateX: 0, translateY: 0 };
 
-		function updateScore() {
-			document.getElementById('score').innerHTML = `Score: ${score}/${maxScore} | Lives: ${'❤️'.repeat(Math.max(0, lives))}`;
-		}
+      container.onmousedown = (e) => {
+          isPanning = true;
+          container.style.cursor = 'grabbing';
+          const point = getSvgPoint(e.clientX, e.clientY);
+          start = {
+            x: point.x,
+            y: point.y,
+            translateX: currentTranslate.x,
+            translateY: currentTranslate.y
+          };
+      };
 
-		function updateGuessedList() {
-			const list = document.getElementById('guessed-list');
-			list.innerHTML = '';
-			guessedCountries.forEach(c => {
-				const li = document.createElement('li');
-				li.className = 'mdl-list__item';
-				li.textContent = c;
-				list.appendChild(li);
-			});
-		}
+      window.onmousemove = (e) => {
+          if (!isPanning) return;
+          const point = getSvgPoint(e.clientX, e.clientY);
+          currentTranslate.x = start.translateX + (point.x - start.x);
+          currentTranslate.y = start.translateY + (point.y - start.y);
+          update();
+      };
 
-		function showTemporaryMessage(msg) {
-			const el = document.getElementById('tempMessage');
-			el.textContent = msg;
-			el.style.display = 'block';
-			setTimeout(() => el.style.display = 'none', 2500);
-		}
+      window.onmouseup = () => {
+          isPanning = false;
+          container.style.cursor = 'default';
+      };
+      
+      update();
+  }
 
-		// Update the Remaining List
-		function updateRemainingList() {
-			const list = document.getElementById('remaining-list');
-			list.innerHTML = '';
-			
-			// Filter out guessed countries
-			const remaining = countryTitles
-				.filter(name => !guessedCountries.includes(name))
-				.sort();
+      function updateScore() {
+        document.getElementById('score').innerHTML = `Score: ${score}/${maxScore} | Lives: ${'❤️'.repeat(Math.max(0, lives))}`;
+      }
 
-			remaining.forEach(name => {
-				const li = document.createElement('li');
-				li.className = 'mdl-list__item';
-				li.textContent = name;
-				list.appendChild(li);
-			});
-		}
+      function updateGuessedList() {
+        const list = document.getElementById('guessed-list');
+        list.innerHTML = '';
+        guessedCountries.forEach(c => {
+          const li = document.createElement('li');
+          li.className = 'mdl-list__item';
+          li.textContent = c;
+          list.appendChild(li);
+        });
+      }
 
-    // Toggle unified left sidebar
-    function toggleSidebar() {
-      const container = document.getElementById('side-container');
-      container.classList.toggle('collapsed');
-    }
+      function showTemporaryMessage(msg) {
+        const el = document.getElementById('tempMessage');
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 2500);
+      }
 
-    function toggleDebugPanel() {
-      const debug = document.getElementById('debug-panel');
-      if (!debug) return;
-      debug.style.display = debug.style.display === 'block' ? 'none' : 'block';
-      updateDebugPanel();
-    }
+      // Update the Remaining List
+      function updateRemainingList() {
+        const list = document.getElementById('remaining-list');
+        list.innerHTML = '';
+        
+        // Filter out guessed countries
+        const remaining = countryTitles
+          .filter(name => !guessedCountries.includes(name))
+          .sort();
 
-		function recordGameOverEntry() {
-			document.getElementById('namePromptContainer').style.display = 'block';
-			document.getElementById('backdrop').style.display = 'block';
-			document.getElementById('nameInput').focus();
-		}
+        remaining.forEach(name => {
+          const li = document.createElement('li');
+          li.className = 'mdl-list__item';
+          li.textContent = name;
+          list.appendChild(li);
+        });
+      }
 
-		function handleNameOk() {
-			playerName = document.getElementById('nameInput').value.trim() || 'Anonymous';
-			closeNamePrompt();
-			if (typeof addLeaderboardEntry !== 'function') return;
-			addLeaderboardEntry({
-				date: new Date().toISOString(),
-				playerName: playerName,
-				scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
-				scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
-				scoreAtLastLifeLoss: scoreAtLastLifeLoss
-			});
-		}
+      function restorePathColors() {
+        const paths = document.querySelectorAll('#svg-container svg path');
+        paths.forEach(path => {
+          const title = path.getAttribute('title');
+          if (title && guessedCountries.includes(title)) {
+            path.style.fill = 'green';
+          }
+        });
+      }
 
-		function handleNameCancel() {
-			playerName = 'Anonymous';
-			closeNamePrompt();
-			if (typeof addLeaderboardEntry !== 'function') return;
-			addLeaderboardEntry({
-				date: new Date().toISOString(),
-				playerName: playerName,
-				scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
-				scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
-				scoreAtLastLifeLoss: scoreAtLastLifeLoss
-			});
-		}
+      // Toggle unified left sidebar
+      function toggleSidebar() {
+        const container = document.getElementById('side-container');
+        container.classList.toggle('collapsed');
+      }
 
-		function closeNamePrompt() {
-			document.getElementById('namePromptContainer').style.display = 'none';
-			document.getElementById('backdrop').style.display = 'none';
-			document.getElementById('nameInput').value = '';
-		}
+      function toggleDebugPanel() {
+        const debug = document.getElementById('debug-panel');
+        if (!debug) return;
+        debug.style.display = debug.style.display === 'block' ? 'none' : 'block';
+        updateDebugPanel();
+      }
 
-    </script>
-</head>
+      function recordGameOverEntry() {
+          // 1. Inject the score text using JavaScript template literals
+          document.getElementById('final-score-display').textContent = `${score}/${maxScore}`;
+          
+          // 2. Show the prompt and backdrop
+          document.getElementById('namePromptContainer').style.display = 'block';
+          document.getElementById('backdrop').style.display = 'block';
+          
+          // 3. Focus the input
+          document.getElementById('nameInput').focus();
+      }
 
-<body>
-<div id="backdrop"></div>
-<div id="tempMessage" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #f8f8f8; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;"></div>
-<div id="namePromptContainer">
-    <p>Game Over! Enter your name for the leaderboard:</p>
-    <input type="text" id="nameInput" placeholder="Your name...">
-    <button id="nameOkButton"><i class="material-icons">check</i>OK</button>
-    <button id="nameCancelButton"><i class="material-icons">close</i>Cancel</button>
-</div>
-<div id="promptContainer" tabindex="-1">
-    <p>Enter the name of the country:</p>
-    <input type="text" id="autocomplete" placeholder="Start typing...">
-    <ul id="suggestions"></ul>
-    <button id="okButton"><i class="material-icons">check</i>OK</button>
-    <button id="cancelButton"><i class="material-icons">close</i>Cancel</button>
-</div>
-<div id="country-tooltip"></div>
-<div id="score-container" class="mdl-shadow--2dp">
-  <div id="score" class="mdl-typography--title">Score: 0/0 | Lives: ❤️❤️❤️</div>
-</div>
+      function handleNameOk() {
+        playerName = document.getElementById('nameInput').value.trim() || 'Anonymous';
+        closeNamePrompt();
+        if (typeof addLeaderboardEntry !== 'function') return;
+        addLeaderboardEntry({
+          date: new Date().toISOString(),
+          playerName: playerName,
+          scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
+          scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
+          scoreAtLastLifeLoss: scoreAtLastLifeLoss
+        });
+      }
 
-<div class="content">
-  <!-- Left: Unified Sidebar (Guessed top / Remaining bottom) -->
-  <div id="side-container" class="mdl-shadow--2dp collapsed">
-    <div class="side-top">
-      <h6 style="padding-left: 16px; margin: 0;">Guessed</h6>
-      <ul id="guessed-list" class="guessed-list mdl-list"></ul>
-    </div>
-    <div class="side-bottom">
-      <h6 style="padding-left: 16px; margin: 0;">Remaining</h6>
-      <ul id="remaining-list" class="mdl-list"></ul>
-    </div>
+      function handleNameCancel() {
+        playerName = 'Anonymous';
+        closeNamePrompt();
+        if (typeof addLeaderboardEntry !== 'function') return;
+        addLeaderboardEntry({
+          date: new Date().toISOString(),
+          playerName: playerName,
+          scoreAtFirstLifeLoss: scoreAtFirstLifeLoss,
+          scoreAtSecondLifeLoss: scoreAtSecondLifeLoss,
+          scoreAtLastLifeLoss: scoreAtLastLifeLoss
+        });
+      }
+
+      function closeNamePrompt() {
+        document.getElementById('namePromptContainer').style.display = 'none';
+        document.getElementById('backdrop').style.display = 'none';
+        document.getElementById('nameInput').value = '';
+      }
+
+      </script>
+  </head>
+
+  <body>
+  <div id="backdrop"></div>
+  <div id="tempMessage" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #f8f8f8; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;"></div>
+  <div id="namePromptContainer">
+      <p>Game Over! Your score is <b id="final-score-display"></b></p>
+      <p>Enter your name for the leaderboard:</p>
+      <input type="text" id="nameInput" placeholder="Your name...">
+      <button id="nameOkButton"><i class="material-icons">check</i>OK</button>
+      <button id="nameCancelButton"><i class="material-icons">close</i>Cancel</button>
+  </div>
+  <div id="promptContainer" tabindex="-1">
+      <p>Enter the name of the country:</p>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="autocomplete" placeholder="Start typing...">
+        <ul id="suggestions"></ul>
+      </div>
+      <button id="okButton"><i class="material-icons">check</i>OK</button>
+      <button id="cancelButton"><i class="material-icons">close</i>Cancel</button>
+  </div>
+  <div id="country-tooltip"></div>
+  <div id="score-container" class="mdl-shadow--2dp">
+    <div id="score" class="mdl-typography--title">Score: 0/0 | Lives: ❤️❤️❤️</div>
   </div>
 
-  <!-- Center: Map -->
-  <div id="svg-container">
-    <div class="zoom-controls">
-      <button id="zoom-in" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
-        <i class="material-icons">zoom_in</i>
-      </button>
-      <button id="zoom-out" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
-        <i class="material-icons">zoom_out</i>
-      </button>
-      <button id="zoom-reset" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Reset zoom">
-        <i class="material-icons">refresh</i>
-      </button>
-      <button id="toggle-debug-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle debug overlay">
-        <i class="material-icons">bug_report</i>
-      </button>
-      <button id="toggle-sidebar-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle sidebar">
-        <i class="material-icons">list</i>
-      </button>
+  <div class="content">
+    <!-- Left: Unified Sidebar (Guessed top / Remaining bottom) -->
+    <div id="side-container" class="mdl-shadow--2dp collapsed">
+      <div class="side-top">
+      <h6 style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Guessed</h6>
+        <ul id="guessed-list" class="guessed-list mdl-list"></ul>
+      </div>
+      <div class="side-bottom">
+      <h6 style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Remaining</h6>
+      <ul id="remaining-list" class="guessed-list mdl-list"></ul>
+      </div>
     </div>
-    <div id="debug-panel"></div>
+
+    <!-- Center: Map -->
+    <div id="svg-container">
+      <div class="zoom-controls">
+        <button id="zoom-in" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+          <i class="material-icons">zoom_in</i>
+        </button>
+
+        <button id="zoom-out" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored">
+          <i class="material-icons">zoom_out</i>
+        </button>
+
+        <button id="zoom-reset" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Reset zoom">
+          <i class="material-icons">youtube_searched_for</i>
+        </button>
+
+        <button id="toggle-sidebar-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle sidebar">
+          <i class="material-icons">list</i>
+        </button>
+        <button id="restart-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Restart game">
+          <i class="material-icons">restart_alt</i>
+        </button>
+        <button id="toggle-debug-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle debug overlay">
+          <i class="material-icons">bug_report</i>
+        </button>
+
+      </div>
+      <div id="debug-panel"></div>
+    </div>
   </div>
-</div>
-</body>
-</html>
+  </body>
+  </html>
