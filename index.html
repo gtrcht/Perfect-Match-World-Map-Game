@@ -344,6 +344,21 @@
       var pathIdentifier = '';
       var selectedPath = null;
       var countryTitles = []; // Moved to global so both Map and UI can see it
+      // Mapping from countryKey (country tag or title lowercased) -> display title
+      var countryMap = {};
+      // Mapping from display title lowercased -> countryKey
+      var displayToKey = {};
+      // Mapping from canonical country key -> array of SVG path elements
+      var countryPathGroups = {};
+      // Store guessed entries for display: { parentKey, title }
+      var guessedEntries = [];
+      // Temporary title candidates encountered per canonical key
+      var titleCandidates = {};
+      // Manual aliasing removed — use original SVG keys directly
+      // Currently selected group's canonical key
+      var selectedPathGroupKey = '';
+      // Raw guesses loaded from storage (reconciled after SVG is parsed)
+      var rawSavedGuesses = null;
       var playerName = 'Player';
       var scoreAtFirstLifeLoss = null;
       var scoreAtSecondLifeLoss = null;
@@ -373,7 +388,8 @@
           const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return;
           const state = JSON.parse(raw);
-          if (Array.isArray(state.guessedCountries)) guessedCountries = state.guessedCountries;
+          // Defer reconciliation of guessed countries until the map is parsed
+          if (Array.isArray(state.guessedCountries)) rawSavedGuesses = state.guessedCountries;
           if (typeof state.score === 'number') score = state.score;
           if (typeof state.lives === 'number') lives = state.lives;
           if (typeof state.scoreAtFirstLifeLoss === 'number') scoreAtFirstLifeLoss = state.scoreAtFirstLifeLoss;
@@ -472,13 +488,38 @@
       // gather all country path elements for interaction wiring
       var paths = svgElement.querySelectorAll('path');
 
+        // Reset mapping containers
+        countryMap = {};
+        displayToKey = {};
+        countryPathGroups = {};
+        titleCandidates = {};
+
         paths.forEach(function(path) {
           path.style.vectorEffect = 'non-scaling-stroke';
           path.setAttribute('vector-effect', 'non-scaling-stroke');
           path.style.touchAction = 'none';
           path.style.msTouchAction = 'none';
-          var title = path.getAttribute('title');
-          if (title && !countryTitles.includes(title)) countryTitles.push(title);
+          var title = path.getAttribute('title') || '';
+          // Prefer explicit country tag attributes when present
+          var tag = path.getAttribute('country') || path.getAttribute('data-country') || path.getAttribute('country_tag') || path.getAttribute('countrycode') || null;
+          var originalKey = (tag ? String(tag) : String(title)).toLowerCase();
+          if (!originalKey) return;
+
+          // Use original key from the SVG (no manual aliasing)
+          var canonicalKey = originalKey;
+
+          // Initialize group containers
+          if (!countryPathGroups[canonicalKey]) {
+            countryPathGroups[canonicalKey] = [];
+            titleCandidates[canonicalKey] = [];
+          }
+          countryPathGroups[canonicalKey].push(path);
+          if (title) titleCandidates[canonicalKey].push(title);
+
+          // Map display label for autocomplete -> canonical key
+          var displayLabel = title || tag || originalKey;
+          displayToKey[String(displayLabel).toLowerCase()] = canonicalKey;
+
           let pathMouseDownPos = null;
 
           path.addEventListener('pointerdown', function(event) {
@@ -490,16 +531,30 @@
               pathMouseDownPos = null;
               return;
             }
-            if (this.style.fill === 'green') return;
-            
+            // compute this path's canonical key
+            var pTitle = this.getAttribute('title') || '';
+            var pTag = this.getAttribute('country') || this.getAttribute('data-country') || this.getAttribute('country_tag') || this.getAttribute('countrycode') || null;
+            var pOrigKey = (pTag ? String(pTag) : String(pTitle)).toLowerCase();
+            var pKey = pOrigKey;
+
+            // If already guessed (any path in group green), ignore
+            var group = countryPathGroups[pKey] || [];
+            if (group.some(pt => pt.style.fill === 'green')) return;
+
             selectedPath = this;
-            if (this.style.fill !== 'red') {
-              this.style.stroke = 'darkblue';
-              this.style.fill = 'rgba(200, 200, 200, 0.7)';
-            }
-            pathIdentifier = this.getAttribute('title').toLowerCase();
+            selectedPathGroupKey = pKey;
+
+            // Highlight entire group
+            group.forEach(pt => {
+              if (pt.style.fill !== 'red') {
+                pt.style.stroke = 'darkblue';
+                if (pt.style.fill !== 'green') pt.style.fill = 'rgba(200, 200, 200, 0.7)';
+              }
+            });
+
+            pathIdentifier = pKey;
             document.getElementById('country-tooltip').style.display = 'none';
-            
+
             document.getElementById('promptContainer').style.display = 'block';
             document.getElementById('backdrop').style.display = 'block';
             document.getElementById('autocomplete').focus();
@@ -507,12 +562,20 @@
 
           path.addEventListener('pointerenter', function(event) {
             if (event.pointerType === 'touch') return;
-            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
+            if (selectedPathGroupKey && document.getElementById('promptContainer').style.display === 'block') return;
             hoveredCountryPath = this;
-            this.style.stroke = "darkblue";
-            if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = "rgba(200, 200, 200, 0.7)"; // Add subtle background for better readability
+            var pTitle = this.getAttribute('title') || '';
+            var pTag = this.getAttribute('country') || this.getAttribute('data-country') || this.getAttribute('country_tag') || this.getAttribute('countrycode') || null;
+            var pOrigKey = (pTag ? String(pTag) : String(pTitle)).toLowerCase();
+            var pKey = pOrigKey;
+            var group = countryPathGroups[pKey] || [];
+            group.forEach(pt => {
+              pt.style.stroke = 'darkblue';
+              if (pt.style.fill !== 'green' && pt.style.fill !== 'red') pt.style.fill = 'rgba(200, 200, 200, 0.7)';
+            });
             var tooltip = document.getElementById('country-tooltip');
-            tooltip.textContent = this.style.fill === 'green' ? this.getAttribute('title') : 'Not guessed';
+            tooltip.textContent = group.some(pt => pt.style.fill === 'green') ? (countryMap[pKey] === pTitle 
+            ? pTitle : `${countryMap[pKey]} (${pTitle})`) : 'Not guessed';
             tooltip.style.display = 'block';
             tooltip.style.left = (event.clientX + 10) + 'px';
             tooltip.style.top = (event.clientY + 10) + 'px';
@@ -520,7 +583,7 @@
 
           path.addEventListener('pointermove', function(event) {
             if (event.pointerType === 'touch') return;
-            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
+            if (selectedPathGroupKey && document.getElementById('promptContainer').style.display === 'block') return;
             var tooltip = document.getElementById('country-tooltip');
             tooltip.style.left = (event.clientX + 10) + 'px';
             tooltip.style.top = (event.clientY + 10) + 'px';
@@ -528,15 +591,43 @@
 
           path.addEventListener('pointerleave', function(event) {
             if (event.pointerType === 'touch') return;
-            if (this === selectedPath && document.getElementById('promptContainer').style.display === 'block') return;
-            this.style.strokeWidth = '';
-            this.style.stroke = '';
-            if (this.style.fill !== 'green' && this.style.fill !== 'red') this.style.fill = '';
+            if (selectedPathGroupKey && document.getElementById('promptContainer').style.display === 'block') return;
+            var pTitle = this.getAttribute('title') || '';
+            var pTag = this.getAttribute('country') || this.getAttribute('data-country') || this.getAttribute('country_tag') || this.getAttribute('countrycode') || null;
+            var pOrigKey = (pTag ? String(pTag) : String(pTitle)).toLowerCase();
+            var pKey = pOrigKey;
+            var group = countryPathGroups[pKey] || [];
+            group.forEach(pt => {
+              pt.style.strokeWidth = '';
+              pt.style.stroke = '';
+              if (pt.style.fill !== 'green' && pt.style.fill !== 'red') pt.style.fill = '';
+            });
             document.getElementById('country-tooltip').style.display = 'none';
           });
         });
 
-        maxScore = countryTitles.length;
+        // Build the countryMap (canonicalKey -> display name) from grouped paths
+        countryMap = {};
+        for (const k in countryPathGroups) {
+          const candidates = titleCandidates[k] || [];
+          // Prefer a candidate whose lowercased form equals the key
+          let displayName = null;
+          for (const t of candidates) {
+            if (String(t).toLowerCase() === k) { displayName = t; break; }
+          }
+          // Otherwise pick the first candidate, or fall back to a title-cased key
+          if (!displayName) displayName = candidates[0] || k.split(/[-_ ]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+          countryMap[k] = displayName;
+          displayToKey[(displayName || '').toLowerCase()] = k;
+        }
+
+        // Build the flattened title list for UI from the countryMap
+        countryTitles = Object.values(countryMap).sort();
+        // compute maxScore as the number of unique country keys
+        maxScore = Object.keys(countryMap).length;
+        // After constructing countryMap, reconcile any saved guesses loaded earlier
+        reconcileSavedGuesses();
+
         updateScore();
         updateRemainingList();
         setupZoomAndPan(svgElement);
@@ -546,31 +637,47 @@
 
       function handleGuess() {
         const input = document.getElementById('autocomplete');
-        const userGuess = input.value.trim().toLowerCase();
+        const rawGuess = input.value.trim();
+        const userGuess = rawGuess.toLowerCase();
 
         if (!userGuess) {
           showTemporaryMessage("Type a name first!");
           return;
         }
 
-        if (userGuess === pathIdentifier) {
+        // Resolve the guess to a canonical country key (prefer display->key mapping)
+        const guessKey = displayToKey[userGuess] || userGuess;
+
+        if (!countryMap[guessKey]) {
+          showTemporaryMessage("Invalid country! Please select from the suggestions.");
+          return;
+        }
+
+        if (guessKey === pathIdentifier) {
           showTemporaryMessage("Correct!");
-          selectedPath.style.fill = 'green';
+          // mark entire group green
+          const group = countryPathGroups[guessKey] || [];
+          group.forEach(pt => pt.style.fill = 'green');
           score++;
-          guessedCountries.push(selectedPath.getAttribute('title'));
+          // store canonical parent as guessed
+          if (!guessedCountries.includes(guessKey)) guessedCountries.push(guessKey);
+          // record a display entry using the user's input as the title (autocomplete supplies nice casing)
+          const entryExists = guessedEntries.some(e => e.parentKey === guessKey && e.title.toLowerCase() === rawGuess.toLowerCase());
+          if (!entryExists) guessedEntries.push({ parentKey: guessKey, title: rawGuess || countryMap[guessKey] });
           updateScore();
           updateGuessedList();
           updateRemainingList();
           saveGameState();
           closePrompt();
-        } else if (!countryTitles.some(c => c.toLowerCase() === userGuess)) {
-          showTemporaryMessage("Invalid country! Please select from the suggestions.");
         } else {
           if (lives === 3) scoreAtFirstLifeLoss = score;
           else if (lives === 2) scoreAtSecondLifeLoss = score;
           else if (lives === 1) scoreAtLastLifeLoss = score;
           showTemporaryMessage("Incorrect!");
-          selectedPath.style.fill = 'red';
+          // mark selected group red briefly
+          const selKey = selectedPathGroupKey || pathIdentifier;
+          const selGroup = countryPathGroups[selKey] || [];
+          selGroup.forEach(pt => pt.style.fill = 'red');
           lives--;
           updateScore();
           saveGameState();
@@ -578,10 +685,45 @@
             showTemporaryMessage("Game Over!");
             recordGameOverEntry();
           }
-          // Reset color after 1 second if wrong
-          setTimeout(() => { if(selectedPath.style.fill !== 'green') selectedPath.style.fill = ''; }, 1000);
+          // Reset color after 1 second if wrong and not guessed later
+          setTimeout(() => { selGroup.forEach(pt => { if (pt.style.fill !== 'green') pt.style.fill = ''; }); }, 1000);
           closePrompt();
         }
+      }
+
+      function reconcileSavedGuesses() {
+        if (!Array.isArray(rawSavedGuesses)) return;
+        const newGuesses = [];
+        rawSavedGuesses.forEach(item => {
+          if (!item) return;
+          const lower = String(item).toLowerCase();
+          if (countryMap[lower]) {
+            newGuesses.push(lower);
+            return;
+          }
+          if (displayToKey[lower]) {
+            newGuesses.push(displayToKey[lower]);
+            return;
+          }
+          // try matching on display values
+          for (const k in countryMap) {
+            if ((countryMap[k] || '').toLowerCase() === lower) {
+              newGuesses.push(k);
+              break;
+            }
+          }
+        });
+        guessedCountries = [...new Set(newGuesses)];
+        // Rebuild guessedEntries for display (use stored display name when available)
+        guessedEntries = [];
+        guessedCountries.forEach(k => {
+          guessedEntries.push({ parentKey: k, title: countryMap[k] || k });
+        });
+        rawSavedGuesses = null;
+        // reflect in UI
+        restorePathColors();
+        updateGuessedList();
+        updateRemainingList();
       }
 
       function setupAutocomplete() {
@@ -639,12 +781,24 @@
       }
 
       function clearSelectedPathHighlight() {
-        if (!selectedPath) return;
-        if (selectedPath.style.fill !== 'green' && selectedPath.style.fill !== 'red') {
-          selectedPath.style.stroke = '';
-          selectedPath.style.fill = '';
+        if (!selectedPath && !selectedPathGroupKey) return;
+        if (selectedPathGroupKey) {
+          const group = countryPathGroups[selectedPathGroupKey] || [];
+          group.forEach(pt => {
+            if (pt.style.fill !== 'green' && pt.style.fill !== 'red') {
+              pt.style.stroke = '';
+              pt.style.fill = '';
+            }
+          });
+          selectedPathGroupKey = '';
         }
-        selectedPath = null;
+        if (selectedPath) {
+          if (selectedPath.style.fill !== 'green' && selectedPath.style.fill !== 'red') {
+            selectedPath.style.stroke = '';
+            selectedPath.style.fill = '';
+          }
+          selectedPath = null;
+        }
       }
 
       function closePrompt() {
@@ -661,18 +815,21 @@
       }
 
       function resetGame() {
-        const paths = document.querySelectorAll('#svg-container svg path');
-        paths.forEach(path => {
-          path.style.stroke = '';
-          if (path.style.fill === 'green' || path.style.fill === 'red') {
-            path.style.fill = '';
-          }
-        });
+        // Clear all group styles
+        for (const k in countryPathGroups) {
+          const group = countryPathGroups[k] || [];
+          group.forEach(pt => {
+            pt.style.stroke = '';
+            if (pt.style.fill === 'green' || pt.style.fill === 'red') pt.style.fill = '';
+          });
+        }
         guessedCountries = [];
+        guessedEntries = [];
         score = 0;
         lives = 3;
         pathIdentifier = '';
         selectedPath = null;
+        selectedPathGroupKey = '';
         scoreAtFirstLifeLoss = null;
         scoreAtSecondLifeLoss = null;
         scoreAtLastLifeLoss = null;
@@ -935,10 +1092,15 @@
       function updateGuessedList() {
         const list = document.getElementById('guessed-list');
         list.innerHTML = '';
-        guessedCountries.forEach(c => {
+        // Render each guessed entry. Show as "Country" when title equals country,
+        // otherwise show "Country (Title)" where Title is the original piece's title.
+        guessedEntries.forEach(entry => {
           const li = document.createElement('li');
           li.className = 'mdl-list__item';
-          li.textContent = c;
+          const parentName = countryMap[entry.parentKey] || entry.parentKey;
+          const title = entry.title || parentName;
+          if (title.toLowerCase() === parentName.toLowerCase()) li.textContent = parentName;
+          else li.textContent = `${parentName} (${title})`;
           list.appendChild(li);
         });
       }
@@ -954,10 +1116,10 @@
       function updateRemainingList() {
         const list = document.getElementById('remaining-list');
         list.innerHTML = '';
-        
-        // Filter out guessed countries
-        const remaining = countryTitles
-          .filter(name => !guessedCountries.includes(name))
+        // Build remaining list from countryMap keys
+        const remaining = Object.keys(countryMap)
+          .filter(k => !guessedCountries.includes(k))
+          .map(k => countryMap[k])
           .sort();
 
         remaining.forEach(name => {
@@ -969,13 +1131,15 @@
       }
 
       function restorePathColors() {
-        const paths = document.querySelectorAll('#svg-container svg path');
-        paths.forEach(path => {
-          const title = path.getAttribute('title');
-          if (title && guessedCountries.includes(title)) {
-            path.style.fill = 'green';
+        // Color groups whose canonical key is in guessedCountries
+        for (const k in countryPathGroups) {
+          const group = countryPathGroups[k] || [];
+          if (guessedCountries.includes(k)) {
+            group.forEach(pt => pt.style.fill = 'green');
+          } else {
+            group.forEach(pt => { if (pt.style.fill === 'green') pt.style.fill = ''; });
           }
-        });
+        }
       }
 
       // Toggle unified left sidebar
