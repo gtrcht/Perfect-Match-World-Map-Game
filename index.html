@@ -30,8 +30,8 @@
           align-items: flex-start;
           width: 100%;
           margin-top: 0;
-          padding-top: 64px;
-          height: calc(100vh - 64px);
+          padding-top: 88px;
+          height: calc(100vh);
           box-sizing: border-box;
           /* Adjust height to account for score bar */
         }
@@ -42,13 +42,109 @@
           left: 0;
           right: 0;
           width: 100%;
-          height: 64px;
+          min-height: 88px;
           display: flex;
-          justify-content: center;
-          align-items: center;
+          flex-direction: column;
+          justify-content: space-between;
+          align-items: stretch;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           z-index: 2000;
           background: white;
+          padding: 0px 0px 0px 0px;
+          box-sizing: border-box;
+        }
+
+        #score-cards {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0px;
+          width: 100hw;
+          padding: 4px;
+          align-items: stretch;
+        }
+
+        .dashboard-card {
+          display: flex;
+          flex-direction: column;
+          gap: 0px;
+          padding: 6px 0px 0px 0px;
+          border-radius: 7px;
+          background: #f5f5f5;
+          min-width: 0;
+          margin: 4px;
+          box-sizing: border-box;
+          text-align: center;
+          align-items: stretch;
+          justify-content: center
+        }
+
+        #score-card,
+        #population-card {
+          flex: 1;
+          width: auto;
+        }
+
+        #population-card {
+          min-width: 200px;
+        }
+
+        #score-card {
+          min-width: 50px;
+        }
+
+        #life-card {
+          padding: 6px;
+        }
+
+        .card-label {
+          font-size: 16px;
+          padding: 0 6px;
+          color: #333;
+          font-weight: 600;
+        }
+
+        .card-value {
+          font-size: 14px;
+          padding: 0 6px;
+          color: #333;
+          font-weight: 500;
+          word-break: break-word;
+        }
+
+        .card-subvalue {
+          font-size: 13px;
+          color: #666;
+        }
+
+        .life-label {
+          font-size: 16px;
+          color: #333;
+          font-weight: 600;
+        }
+
+        .life-hearts {
+          font-size: 24px;
+          line-height: 1.2;
+          display: block;
+        }
+
+        .progress-bar {
+          width: 100%;
+          height: 10px;
+          margin-top: auto;
+          bottom: 0px;
+          border-radius: 0px 0px 7px 7px;
+          background: #eaeaea;
+          overflow: hidden;
+          align-self: flex-end; /* Ensures it stays at the end of the flex flow */
+        }
+
+        .progress-fill {
+          height: 100%;
+          width: 0%;
+          background: linear-gradient(90deg, #4caf50, #66bb6a);
+          transition: width 0.3s ease;
         }
 
         /* left sidebar is now unified in #side-container */
@@ -58,15 +154,20 @@
           padding-left: 0;
         }
 
+        .guessed-list .mdl-list__item,
         .guessed-list li {
-          padding: 2px 0;
+          font-size: 15px !important;    /* Shrinks the text slightly smaller than standard */
+          line-height: 18px !important;  /* Tightens the vertical line height */
+          min-height: 18px !important;   /* Reduces MDL's default bulky vertical padding */
+          padding-top: 1px !important;
+          padding-bottom: 1px !important;
         }
 
         #svg-container {
           flex: 1;
           width: auto;
           /* Container width - could be 100vw for full viewport width or any other value */
-          height: calc(100vh - 64px);
+          height: calc(100vh - 96px);
           /* Container height - could be 100vh for full viewport height or any other value */
           display: flex;
           justify-content: center;
@@ -93,7 +194,7 @@
 
         .zoom-controls {
           position: absolute;
-          top: 10px;
+          top: 40px;
           right: 10px;
           z-index: 2100;
           display: flex;
@@ -186,7 +287,7 @@
   #promptContainer {
       display: none;
       position: fixed;
-      top: 12%;
+      top: 100px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 1000;
@@ -252,7 +353,7 @@
       background-color: white;
       transition: width 0.3s ease, padding 0.3s ease;
       box-sizing: border-box;
-      padding: 8px 12px;
+      padding: 8px 0px 8px 12px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -354,7 +455,9 @@
       var guessedEntries = [];
       // Temporary title candidates encountered per canonical key
       var titleCandidates = {};
-      // Manual aliasing removed — use original SVG keys directly
+      // Population by canonical country key
+      var countryPopulation = {};
+      var maxPopulation = 0;
       // Currently selected group's canonical key
       var selectedPathGroupKey = '';
       // Raw guesses loaded from storage (reconciled after SVG is parsed)
@@ -520,6 +623,28 @@
           var displayLabel = title || tag || originalKey;
           displayToKey[String(displayLabel).toLowerCase()] = canonicalKey;
 
+        if (countryPopulation[canonicalKey] == null) {
+          countryPopulation[canonicalKey] = 0; // Initialize if it doesn't exist yet
+        }
+
+        var popValue = path.getAttribute('population');
+        if (popValue != null) {
+          popValue = String(popValue).replace(/,/g, '');
+          var parsed = parseInt(popValue, 10);
+          
+          if (!Number.isNaN(parsed)) {
+            // ACCUMULATE: Add to existing total instead of overwriting
+            countryPopulation[canonicalKey] += parsed;
+          }
+          
+          console.log(
+                'Found population attribute for', title, 
+                ':', popValue, 
+                '(', canonicalKey, 
+                'accumulated total:', countryPopulation[canonicalKey].toLocaleString(), ')'
+              );        
+  }
+
           let pathMouseDownPos = null;
 
           path.addEventListener('pointerdown', function(event) {
@@ -608,6 +733,7 @@
 
         // Build the countryMap (canonicalKey -> display name) from grouped paths
         countryMap = {};
+        maxPopulation = 0;
         for (const k in countryPathGroups) {
           const candidates = titleCandidates[k] || [];
           // Prefer a candidate whose lowercased form equals the key
@@ -619,6 +745,10 @@
           if (!displayName) displayName = candidates[0] || k.split(/[-_ ]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
           countryMap[k] = displayName;
           displayToKey[(displayName || '').toLowerCase()] = k;
+          maxPopulation += countryPopulation[k] || 0;
+        }
+        if (maxPopulation === 0) {
+          console.warn('No population metadata found in world_map.svg. Ensure each path uses population/data-population/pop/data-pop or population_count attributes.');
         }
 
         // Build the flattened title list for UI from the countryMap
@@ -737,7 +867,10 @@
           selectedSuggestionIndex = -1;
           if (val.length < 2) return;
 
-          const matches = countryTitles.filter(t => t.toLowerCase().includes(val));
+          const guessedTitles = new Set(guessedEntries.map(entry => entry.title));
+          const matches = countryTitles.filter(t => 
+            t.toLowerCase().includes(val) && !guessedTitles.has(t)
+          );
           matches.forEach((m, i) => {
             const li = document.createElement('li');
             li.textContent = m;
@@ -1086,7 +1219,23 @@
   }
 
       function updateScore() {
-        document.getElementById('score').innerHTML = `Score: ${score}/${maxScore} | Lives: ${'❤️'.repeat(Math.max(0, lives))}`;
+        document.getElementById('score-value').textContent = `${score}/${maxScore}`;
+        const scoreRatio = maxScore > 0 ? Math.min(1, score / maxScore) : 0;
+        const scoreFill = document.getElementById('score-progress-fill');
+        if (scoreFill) scoreFill.style.width = `${scoreRatio * 100}%`;
+
+        const foundPopulation = guessedCountries.reduce((sum, k) => sum + (countryPopulation[k] || 0), 0);
+        const formattedFound = foundPopulation.toLocaleString();
+        const formattedMax = maxPopulation.toLocaleString();
+        const popRatio = maxPopulation > 0 ? Math.min(1, foundPopulation / maxPopulation) : 0;
+        const percent = Math.round(popRatio * 1000) / 10;
+
+        document.getElementById('population-value').textContent = `${formattedFound}/${formattedMax}`;
+        document.getElementById('population-percent').textContent = `(${percent}%)`;
+        const popFill = document.getElementById('population-progress-fill');
+        if (popFill) popFill.style.width = `${popRatio * 100}%`;
+
+        document.getElementById('lives-hearts').textContent = '❤️'.repeat(Math.max(0, lives));
       }
 
       function updateGuessedList() {
@@ -1223,7 +1372,22 @@
   </div>
   <div id="country-tooltip"></div>
   <div id="score-container" class="mdl-shadow--2dp">
-    <div id="score" class="mdl-typography--title">Score: 0/0 | Lives: ❤️❤️❤️</div>
+    <div id="score-cards">
+      <div id="score-card" class="dashboard-card">
+        <div class="card-label">Score</div>
+        <div class="card-value"><span id="score-value">0/0</span></div>
+        <div class="progress-bar"><div id="score-progress-fill" class="progress-fill"></div></div>
+      </div>
+      <div id="population-card" class="dashboard-card">
+        <div class="card-label">Population</div>
+        <div class="card-value"><span id="population-value">0/0</span> <span id="population-percent">(0%)</span></div>
+        <div class="progress-bar"><div id="population-progress-fill" class="progress-fill"></div></div>
+      </div>
+      <div id="life-card" class="dashboard-card">
+        <div class="life-label">Lives</div>
+        <div id="lives-hearts" class="life-hearts">❤️❤️❤️</div>
+      </div>
+    </div>
   </div>
 
   <div class="content">
