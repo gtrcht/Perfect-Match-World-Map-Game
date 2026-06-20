@@ -29,11 +29,12 @@
           flex-direction: row;
           align-items: flex-start;
           width: 100%;
-          margin-top: 0;
-          padding-top: 88px;
-          height: calc(100vh);
+          margin: 0;
+          margin-top: 50px;
+          padding-top: 0;
+          height: calc(100vh - 50px);
           box-sizing: border-box;
-          /* Adjust height to account for score bar */
+          /* Dynamically adjusted by JavaScript */
         }
 
         #score-container {
@@ -42,14 +43,14 @@
           left: 0;
           right: 0;
           width: 100%;
-          min-height: 88px;
+          min-height: 50px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           align-items: stretch;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           z-index: 2000;
-          background: white;
+          background: rgba(255, 255, 255, 0.95);
           padding: 0px 0px 0px 0px;
           box-sizing: border-box;
         }
@@ -167,8 +168,8 @@
           flex: 1;
           width: auto;
           /* Container width - could be 100vw for full viewport width or any other value */
-          height: calc(100vh - 96px);
-          /* Container height - could be 100vh for full viewport height or any other value */
+          height: 100%;
+          /* Container height - fills parent .content height */
           display: flex;
           justify-content: center;
           align-items: center;
@@ -466,10 +467,217 @@
       var scoreAtFirstLifeLoss = null;
       var scoreAtSecondLifeLoss = null;
       var scoreAtLastLifeLoss = null;
+      var cursorPos = { x: 0, y: 0 };
 
       // Debug options
       const DEBUG_PANEL_ENABLED = false;
       const STORAGE_KEY = 'perfect-country-match-state';
+      
+      // Dynamically adjust content margins/height based on real score-container height
+      function adjustContentHeight() {
+        const scoreContainer = document.getElementById('score-container');
+        const content = document.querySelector('.content');
+        if (!scoreContainer || !content) return;
+        
+        const actualHeight = scoreContainer.getBoundingClientRect().height;
+        content.style.marginTop = actualHeight + 'px';
+        content.style.height = `calc(100vh - ${actualHeight}px)`;
+      }
+      
+      // Language & Translations
+      var currentLanguage = localStorage.getItem('game-language') || 'en';
+      const translations = {
+        en: {
+          not_guessed: 'Not guessed',
+          guessed: 'Guessed',
+          remaining: 'Remaining',
+          score: 'Score',
+          population: 'Population',
+          lives: 'Lives',
+          enterCountryName: 'Enter the name of the country:',
+          startTyping: 'Start typing...',
+          okButton: 'OK',
+          cancelButton: 'Cancel',
+          typeNameFirst: 'Type a name first!',
+          invalidCountry: 'Invalid country! Please select from the suggestions.',
+          correct: 'Correct!',
+          incorrect: 'Incorrect!',
+          gameOver: 'Game Over!',
+          gameOverMessage: 'Game Over! Your score is',
+          enterNameLeaderboard: 'Enter your name for the leaderboard:',
+          failedLoadMap: 'Failed to load map file.',
+          yourNamePlaceholder: 'Your name...'
+        },
+        fr: {
+          not_guessed: 'Non deviné',
+          guessed: 'Deviné',
+          remaining: 'Restant',
+          score: 'Score',
+          population: 'Population',
+          lives: 'Vies',
+          enterCountryName: 'Entrez le nom du pays :',
+          startTyping: 'Commencez à taper...',
+          okButton: 'OK',
+          cancelButton: 'Annuler',
+          typeNameFirst: 'Tapez un nom d\'abord !',
+          invalidCountry: 'Pays invalide ! Veuillez sélectionner dans les suggestions.',
+          correct: 'Correct !',
+          incorrect: 'Incorrect !',
+          gameOver: 'Fin du jeu !',
+          gameOverMessage: 'Fin du jeu ! Votre score est',
+          enterNameLeaderboard: 'Entrez votre nom pour le classement :',
+          failedLoadMap: 'Échec du chargement de la carte.',
+          yourNamePlaceholder: 'Votre nom...'
+        }
+      };
+
+      // Country name translations (add countries as needed)
+      const countryTranslations = {
+        en: {},
+        fr: {
+          'united states': 'États-Unis',
+          'united states of america': 'États-Unis',
+          'france': 'France',
+          'germany': 'Allemagne',
+          'italy': 'Italie',
+          'spain': 'Espagne',
+          'united kingdom': 'Royaume-Uni',
+          'canada': 'Canada',
+          'mexico': 'Mexique',
+          'brazil': 'Brésil',
+          'argentina': 'Argentine',
+          'australia': 'Australie',
+          'japan': 'Japon',
+          'china': 'Chine',
+          'india': 'Inde',
+          'russia': 'Russie',
+          'south korea': 'Corée du Sud',
+          'north korea': 'Corée du Nord',
+          'south africa': 'Afrique du Sud',
+          'egypt': 'Égypte',
+          'turkey': 'Turquie',
+          'greece': 'Grèce',
+          'netherlands': 'Pays-Bas',
+          'belgium': 'Belgique',
+          'switzerland': 'Suisse',
+          'austria': 'Autriche',
+          'poland': 'Pologne',
+          'sweden': 'Suède',
+          'norway': 'Norvège',
+          'denmark': 'Danemark',
+          'finland': 'Finlande',
+          'ireland': 'Irlande',
+          'portugal': 'Portugal',
+          'new zealand': 'Nouvelle-Zélande',
+          'singapore': 'Singapour',
+          'thailand': 'Thaïlande',
+          'vietnam': 'Viêt Nam',
+          'philippines': 'Philippines',
+          'indonesia': 'Indonésie',
+          'malaysia': 'Malaisie',
+          'pakistan': 'Pakistan',
+          'bangladesh': 'Bangladesh',
+          'iran': 'Iran',
+          'iraq': 'Irak',
+          'saudi arabia': 'Arabie Saoudite',
+          'united arab emirates': 'Émirats Arabes Unis',
+          'israel': 'Israël',
+          'lebanon': 'Liban',
+          'jordan': 'Jordanie',
+          'syria': 'Syrie',
+          'yemen': 'Yémen',
+          'oman': 'Oman',
+          'qatar': 'Qatar',
+          'bahrain': 'Bahreïn',
+          'kuwait': 'Koweït',
+          'peru': 'Pérou',
+          'chile': 'Chili',
+          'colombia': 'Colombie',
+          'venezuela': 'Venezuela',
+          'ecuador': 'Équateur',
+          'bolivia': 'Bolivie',
+          'paraguay': 'Paraguay',
+          'uruguay': 'Uruguay',
+          'costa rica': 'Costa Rica',
+          'panama': 'Panama',
+          'cuba': 'Cuba',
+          'jamaica': 'Jamaïque',
+          'haiti': 'Haïti',
+          'dominican republic': 'République Dominicaine',
+          'puerto rico': 'Porto Rico',
+          'trinidad and tobago': 'Trinité-et-Tobago',
+          'nigeria': 'Nigéria',
+          'ghana': 'Ghana',
+          'kenya': 'Kenya',
+          'ethiopia': 'Éthiopie',
+          'uganda': 'Ouganda',
+          'tanzania': 'Tanzanie',
+          'zambia': 'Zambie',
+          'zimbabwe': 'Zimbabwe',
+          'morocco': 'Maroc',
+          'algeria': 'Algérie',
+          'tunisia': 'Tunisie',
+          'libya': 'Libye',
+          'sudan': 'Soudan',
+          'cameroon': 'Cameroun',
+          'ivory coast': "Côte d'Ivoire",
+          'senegal': 'Sénégal',
+          'angola': 'Angola',
+          'mozambique': 'Mozambique',
+          'malawi': 'Malawi',
+          'botswana': 'Botswana',
+          'namibia': 'Namibie',
+          'lesotho': 'Lesotho',
+          'mauritius': 'Maurice',
+          'seychelles': 'Seychelles',
+          'madagascar': 'Madagascar'
+        }
+      };
+
+      function getTranslatedCountryName(countryName) {
+        if (currentLanguage === 'en') return countryName;
+        const lowerName = String(countryName).toLowerCase();
+        return countryTranslations.fr[lowerName] || countryName;
+      }
+
+      function t(key) {
+        return translations[currentLanguage][key] || translations['en'][key] || key;
+      }
+
+      function setLanguage(lang) {
+        currentLanguage = lang;
+        localStorage.setItem('game-language', lang);
+        updateUILanguage();
+      }
+
+      function updateUILanguage() {
+        document.querySelector('#guessed-title').textContent = t('guessed');
+        document.querySelector('#remaining-title').textContent = t('remaining');
+        document.querySelector('#score-label').textContent = t('score');
+        document.querySelector('#population-label').textContent = t('population');
+        document.querySelector('#life-label').textContent = t('lives');
+        document.querySelector('#country-prompt-text').textContent = t('enterCountryName');
+        document.querySelector('#autocomplete').placeholder = t('startTyping');
+        document.querySelector('#okButton span').textContent = t('okButton');
+        document.querySelector('#cancelButton span').textContent = t('cancelButton');
+        document.querySelector('#nameOkButton span').textContent = t('okButton');
+        document.querySelector('#nameCancelButton span').textContent = t('cancelButton');
+        document.querySelector('#nameInput').placeholder = t('yourNamePlaceholder');
+        
+        // Update game over text
+        const gameOverTitle = document.querySelector('#game-over-title');
+        if (gameOverTitle) {
+          gameOverTitle.innerHTML = `${t('gameOverMessage')} <b id="final-score-display">${score}/${maxScore}</b>`;
+        }
+        const namePrompt = document.querySelector('#enter-name-prompt');
+        if (namePrompt) {
+          namePrompt.textContent = t('enterNameLeaderboard');
+        }
+        
+        // Refresh country lists with new language translations
+        updateGuessedList();
+        updateRemainingList();
+      }
 
       function saveGameState() {
         try {
@@ -513,6 +721,11 @@
       document.addEventListener('DOMContentLoaded', function() {
         loadGameState();
         updateScore();
+        updateUILanguage();
+        
+        // Adjust content height based on actual score-container height
+        adjustContentHeight();
+        window.addEventListener('resize', adjustContentHeight);
         
         // Attach OK button logic
         document.getElementById('okButton').onclick = handleGuess;
@@ -533,6 +746,9 @@
         // Attach Sidebar Toggle
         document.getElementById('toggle-sidebar-btn').onclick = toggleSidebar;
         document.getElementById('toggle-debug-btn').onclick = toggleDebugPanel;
+        document.getElementById('language-toggle-btn').onclick = () => {
+          setLanguage(currentLanguage === 'en' ? 'fr' : 'en');
+        };
         document.getElementById('restart-btn').onclick = confirmRestart;
 
         if (!DEBUG_PANEL_ENABLED) {
@@ -569,7 +785,7 @@
           })
           .catch(err => {
             console.error("Error loading SVG:", err);
-            showTemporaryMessage("Failed to load map file.");
+            showTemporaryMessage(t('failedLoadMap'));
           });
       });
 
@@ -596,6 +812,7 @@
         displayToKey = {};
         countryPathGroups = {};
         titleCandidates = {};
+        var countryTitlesSet = new Set();
 
         paths.forEach(function(path) {
           path.style.vectorEffect = 'non-scaling-stroke';
@@ -622,6 +839,14 @@
           // Map display label for autocomplete -> canonical key
           var displayLabel = title || tag || originalKey;
           displayToKey[String(displayLabel).toLowerCase()] = canonicalKey;
+          if (displayLabel) countryTitlesSet.add(displayLabel);
+          const lowerLabel = String(displayLabel).toLowerCase();
+          for (const lang in countryTranslations) {
+            const transMap = countryTranslations[lang];
+            if (transMap && transMap[lowerLabel]) {
+              displayToKey[transMap[lowerLabel].toLowerCase()] = canonicalKey;
+            }
+          }
 
         if (countryPopulation[canonicalKey] == null) {
           countryPopulation[canonicalKey] = 0; // Initialize if it doesn't exist yet
@@ -699,8 +924,9 @@
               if (pt.style.fill !== 'green' && pt.style.fill !== 'red') pt.style.fill = 'rgba(200, 200, 200, 0.7)';
             });
             var tooltip = document.getElementById('country-tooltip');
+            const countryDisplayName = getTranslatedCountryName(countryMap[pKey]);
             tooltip.textContent = group.some(pt => pt.style.fill === 'green') ? (countryMap[pKey] === pTitle 
-            ? pTitle : `${countryMap[pKey]} (${pTitle})`) : 'Not guessed';
+            ? countryDisplayName : `${countryDisplayName} (${pTitle})`) : t('not_guessed');
             tooltip.style.display = 'block';
             tooltip.style.left = (event.clientX + 10) + 'px';
             tooltip.style.top = (event.clientY + 10) + 'px';
@@ -745,14 +971,22 @@
           if (!displayName) displayName = candidates[0] || k.split(/[-_ ]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
           countryMap[k] = displayName;
           displayToKey[(displayName || '').toLowerCase()] = k;
+          if (displayName) countryTitlesSet.add(displayName);
+          const lowerName = (displayName || '').toLowerCase();
+          for (const lang in countryTranslations) {
+            const transMap = countryTranslations[lang];
+            if (transMap && transMap[lowerName]) {
+              displayToKey[transMap[lowerName].toLowerCase()] = k;
+            }
+          }
           maxPopulation += countryPopulation[k] || 0;
         }
         if (maxPopulation === 0) {
           console.warn('No population metadata found in world_map.svg. Ensure each path uses population/data-population/pop/data-pop or population_count attributes.');
         }
 
-        // Build the flattened title list for UI from the countryMap
-        countryTitles = Object.values(countryMap).sort();
+        // Build the flattened title list for UI from all collected titles
+        countryTitles = Array.from(countryTitlesSet).sort();
         // compute maxScore as the number of unique country keys
         maxScore = Object.keys(countryMap).length;
         // After constructing countryMap, reconcile any saved guesses loaded earlier
@@ -771,7 +1005,7 @@
         const userGuess = rawGuess.toLowerCase();
 
         if (!userGuess) {
-          showTemporaryMessage("Type a name first!");
+          showTemporaryMessage(t('typeNameFirst'));
           return;
         }
 
@@ -779,12 +1013,12 @@
         const guessKey = displayToKey[userGuess] || userGuess;
 
         if (!countryMap[guessKey]) {
-          showTemporaryMessage("Invalid country! Please select from the suggestions.");
+          showTemporaryMessage(t('invalidCountry'));
           return;
         }
 
         if (guessKey === pathIdentifier) {
-          showTemporaryMessage("Correct!");
+          showTemporaryMessage(t('correct'));
           // mark entire group green
           const group = countryPathGroups[guessKey] || [];
           group.forEach(pt => pt.style.fill = 'green');
@@ -803,7 +1037,7 @@
           if (lives === 3) scoreAtFirstLifeLoss = score;
           else if (lives === 2) scoreAtSecondLifeLoss = score;
           else if (lives === 1) scoreAtLastLifeLoss = score;
-          showTemporaryMessage("Incorrect!");
+          showTemporaryMessage(t('incorrect'));
           // mark selected group red briefly
           const selKey = selectedPathGroupKey || pathIdentifier;
           const selGroup = countryPathGroups[selKey] || [];
@@ -812,7 +1046,7 @@
           updateScore();
           saveGameState();
           if (lives <= 0) {
-            showTemporaryMessage("Game Over!");
+            showTemporaryMessage(t('gameOver'));
             recordGameOverEntry();
           }
           // Reset color after 1 second if wrong and not guessed later
@@ -867,17 +1101,25 @@
           selectedSuggestionIndex = -1;
           if (val.length < 2) return;
 
-          const guessedTitles = new Set(guessedEntries.map(entry => entry.title));
-          const matches = countryTitles.filter(t => 
-            t.toLowerCase().includes(val) && !guessedTitles.has(t)
-          );
+          const matches = countryTitles.filter(t => {
+            const canonical = displayToKey[t.toLowerCase()];
+            if (guessedCountries.includes(canonical)) return false;
+
+            const originalName = t.toLowerCase();
+            const translatedName = getTranslatedCountryName(t).toLowerCase();
+            return originalName.includes(val) || translatedName.includes(val);
+          });
+
           matches.forEach((m, i) => {
             const li = document.createElement('li');
-            li.textContent = m;
+            const translatedName = getTranslatedCountryName(m);
+            li.textContent = translatedName;
+            li.dataset.originalName = m;
             li.onclick = () => {
-              input.value = m;
+              input.value = translatedName;
               suggestions.innerHTML = '';
               selectedSuggestionIndex = -1;
+              handleGuess();
             };
             suggestions.appendChild(li);
           });
@@ -897,9 +1139,11 @@
           } else if (e.key === 'Enter') {
             if (selectedSuggestionIndex >= 0 && items[selectedSuggestionIndex]) {
               e.preventDefault();
-              input.value = items[selectedSuggestionIndex].textContent;
+              const selectedItem = items[selectedSuggestionIndex];
+              input.value = selectedItem.textContent;
               suggestions.innerHTML = '';
               selectedSuggestionIndex = -1;
+              handleGuess();
             } else {
               handleGuess();
             }
@@ -1007,48 +1251,75 @@
           updateDebugPanel();
       };
 
-      function clampTranslate() {
-        const rect = container.getBoundingClientRect();
+      // function clampTranslate() {
+      //   // Get container boundaries in screen coordinates
+      //   const rect = container.getBoundingClientRect();
         
-        // Calculate the actual screen dimensions of the map at the current zoom level
-        const scaledWidth = svgWidth * currentScale;
-        const scaledHeight = svgHeight * currentScale;
+      //   // Convert screen boundaries to SVG root coordinates (viewBox units)
+      //   const topLeftSvg = getSvgPoint(rect.left, rect.top);
+      //   const bottomRightSvg = getSvgPoint(rect.right, rect.bottom);
+        
+      //   // Calculate visible viewport dimensions in SVG coordinates
+      //   const visibleWidth = bottomRightSvg.x - topLeftSvg.x;
+      //   const visibleHeight = bottomRightSvg.y - topLeftSvg.y;
 
-        // HORIZONTAL CLAMPING (X-Axis)
-        if (scaledWidth > rect.width) {
-          // If the map is wider than the screen, allow dragging 
-          // between the negative drag limit (minX) and exactly 0
-          const minX = rect.width - scaledWidth;
-          currentTranslate.x = Math.min(Math.max(currentTranslate.x, minX), 0);
-        } else {
-          // If the map is smaller than the screen, firmly lock it in the center and prevent dragging
-          currentTranslate.x = (rect.width - scaledWidth) / 2;
-        }
+      //   // Calculate scaled dimensions of the map in SVG root coordinates
+      //   const scaledWidth = svgWidth * currentScale;
+      //   const scaledHeight = svgHeight * currentScale;
 
-        // VERTICAL CLAMPING (Y-Axis)
-        if (scaledHeight > rect.height) {
-          // If the map is taller than the screen, allow dragging 
-          // between the negative drag limit (minY) and exactly 0
-          const minY = rect.height - scaledHeight;
-          currentTranslate.y = Math.min(Math.max(currentTranslate.y, minY), 0);
-        } else {
-          // If the map is shorter than the screen, firmly lock it in the center
-          currentTranslate.y = (rect.height - scaledHeight) / 2;
-        }
-      }
+      //   // HORIZONTAL CLAMPING (X-Axis)
+      //   if (scaledWidth > visibleWidth) {
+      //     // Map is larger than viewport: clamp translation between bounds
+      //     // Minimum: left edge of content aligns with left edge of viewport
+      //     const minX = topLeftSvg.x;
+      //     // Maximum: right edge of content aligns with right edge of viewport
+      //     const maxX = bottomRightSvg.x - scaledWidth;
+      //     currentTranslate.x = Math.min(Math.max(currentTranslate.x, minX), maxX);
+      //   } else {
+      //     // Map is smaller than viewport: center it horizontally
+      //     currentTranslate.x = topLeftSvg.x + (visibleWidth - scaledWidth) / 2;
+      //   }
+
+      //   // VERTICAL CLAMPING (Y-Axis)
+      //   if (scaledHeight > visibleHeight) {
+      //     // Map is larger than viewport: clamp translation between bounds
+      //     // Minimum: top edge of content aligns with top edge of viewport
+      //     const minY = topLeftSvg.y;
+      //     // Maximum: bottom edge of content aligns with bottom edge of viewport
+      //     const maxY = bottomRightSvg.y - scaledHeight;
+      //     currentTranslate.y = Math.min(Math.max(currentTranslate.y, minY), maxY);
+      //   } else {
+      //     // Map is smaller than viewport: center it vertically
+      //     currentTranslate.y = topLeftSvg.y + (visibleHeight - scaledHeight) / 2;
+      //   }
+      // }
 
       // Update the debug overlay with current transform and size information
       function updateDebugPanel() {
           const debug = document.getElementById('debug-panel');
           if (!debug) return;
           const containerRect = container.getBoundingClientRect();
-          const svgRect = svgElement.getBoundingClientRect();
+          
+          // Calculate zoomed SVG size
+          const zoomedWidth = svgWidth * currentScale;
+          const zoomedHeight = svgHeight * currentScale;
+          
+          // Calculate SVG corners in container coordinate space (top-left of container = 0,0)
+          const topLeft = { x: currentTranslate.x, y: currentTranslate.y};
+          const topRight = { x: currentTranslate.x + zoomedWidth, y: currentTranslate.y };
+          const bottomLeft = { x: currentTranslate.x, y: currentTranslate.y + zoomedHeight };
+          const bottomRight = { x: currentTranslate.x + zoomedWidth, y: currentTranslate.y + zoomedHeight };
+          
           debug.textContent =
               `Zoom: ${currentScale.toFixed(2)}\n` +
               `Translate: ${currentTranslate.x.toFixed(0)}, ${currentTranslate.y.toFixed(0)}\n` +
               `Container: ${Math.round(containerRect.width)}x${Math.round(containerRect.height)}\n` +
-              `SVG: ${Math.round(svgRect.width)}x${Math.round(svgRect.height)}\n` +
-              `SVG offset: ${Math.round(svgRect.left)}, ${Math.round(svgRect.top)}`;
+              `SVG Zoomed Size: ${Math.round(zoomedWidth)}x${Math.round(zoomedHeight)}\n` +
+              `Top-Left: ${Math.round(topLeft.x)}, ${Math.round(topLeft.y)}\n` +
+              `Top-Right: ${Math.round(topRight.x)}, ${Math.round(topRight.y)}\n` +
+              `Bottom-Left: ${Math.round(bottomLeft.x)}, ${Math.round(bottomLeft.y)}\n` +
+              `Bottom-Right: ${Math.round(bottomRight.x)}, ${Math.round(bottomRight.y)}\n` +
+              `Cursor: ${Math.round(cursorPos.x)}, ${Math.round(cursorPos.y)}`;
       }
 
       // Zoom Buttons (center of container)
@@ -1202,6 +1473,18 @@
           };
       };
 
+      container.onmousemove = (e) => {
+          const containerRect = container.getBoundingClientRect();
+          cursorPos.x = e.clientX - containerRect.left;
+          cursorPos.y = e.clientY - containerRect.top;
+          updateDebugPanel();
+      };
+
+      container.onmouseleave = () => {
+          cursorPos = { x: 0, y: 0 };
+          updateDebugPanel();
+      };
+
       window.onmousemove = (e) => {
           if (!isPanning) return;
           const point = getSvgPoint(e.clientX, e.clientY);
@@ -1248,8 +1531,9 @@
           li.className = 'mdl-list__item';
           const parentName = countryMap[entry.parentKey] || entry.parentKey;
           const title = entry.title || parentName;
-          if (title.toLowerCase() === parentName.toLowerCase()) li.textContent = parentName;
-          else li.textContent = `${parentName} (${title})`;
+          const displayParentName = getTranslatedCountryName(parentName);
+          if (title.toLowerCase() === parentName.toLowerCase()) li.textContent = displayParentName;
+          else li.textContent = `${displayParentName} (${title})`;
           list.appendChild(li);
         });
       }
@@ -1268,7 +1552,7 @@
         // Build remaining list from countryMap keys
         const remaining = Object.keys(countryMap)
           .filter(k => !guessedCountries.includes(k))
-          .map(k => countryMap[k])
+          .map(k => getTranslatedCountryName(countryMap[k]))
           .sort();
 
         remaining.forEach(name => {
@@ -1355,36 +1639,36 @@
   <div id="backdrop"></div>
   <div id="tempMessage" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #f8f8f8; padding: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;"></div>
   <div id="namePromptContainer">
-      <p>Game Over! Your score is <b id="final-score-display"></b></p>
-      <p>Enter your name for the leaderboard:</p>
+      <p id="game-over-title">Game Over! Your score is <b id="final-score-display"></b></p>
+      <p id="enter-name-prompt">Enter your name for the leaderboard:</p>
       <input type="text" id="nameInput" placeholder="Your name...">
-      <button id="nameOkButton"><i class="material-icons">check</i>OK</button>
-      <button id="nameCancelButton"><i class="material-icons">close</i>Cancel</button>
+      <button id="nameOkButton"><i class="material-icons">check</i><span>OK</span></button>
+      <button id="nameCancelButton"><i class="material-icons">close</i><span>Cancel</span></button>
   </div>
   <div id="promptContainer" tabindex="-1">
-      <p>Enter the name of the country:</p>
+      <p id="country-prompt-text">Enter the name of the country:</p>
       <div class="autocomplete-wrapper">
         <input type="text" id="autocomplete" placeholder="Start typing...">
         <ul id="suggestions"></ul>
       </div>
-      <button id="okButton"><i class="material-icons">check</i>OK</button>
-      <button id="cancelButton"><i class="material-icons">close</i>Cancel</button>
+      <button id="okButton"><i class="material-icons">check</i><span>OK</span></button>
+      <button id="cancelButton"><i class="material-icons">close</i><span>Cancel</span></button>
   </div>
   <div id="country-tooltip"></div>
   <div id="score-container" class="mdl-shadow--2dp">
     <div id="score-cards">
       <div id="score-card" class="dashboard-card">
-        <div class="card-label">Score</div>
+        <div id="score-label" class="card-label">Score</div>
         <div class="card-value"><span id="score-value">0/0</span></div>
         <div class="progress-bar"><div id="score-progress-fill" class="progress-fill"></div></div>
       </div>
       <div id="population-card" class="dashboard-card">
-        <div class="card-label">Population</div>
+        <div id="population-label" class="card-label">Population</div>
         <div class="card-value"><span id="population-value">0/0</span> <span id="population-percent">(0%)</span></div>
         <div class="progress-bar"><div id="population-progress-fill" class="progress-fill"></div></div>
       </div>
       <div id="life-card" class="dashboard-card">
-        <div class="life-label">Lives</div>
+        <div id="life-label" class="life-label">Lives</div>
         <div id="lives-hearts" class="life-hearts">❤️❤️❤️</div>
       </div>
     </div>
@@ -1394,11 +1678,11 @@
     <!-- Left: Unified Sidebar (Guessed top / Remaining bottom) -->
     <div id="side-container" class="mdl-shadow--2dp collapsed">
       <div class="side-top">
-      <h6 style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Guessed</h6>
+      <h6 id="guessed-title" style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Guessed</h6>
         <ul id="guessed-list" class="guessed-list mdl-list"></ul>
       </div>
       <div class="side-bottom">
-      <h6 style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Remaining</h6>
+      <h6 id="remaining-title" style="font-size: 20px !important; font-weight: 600 !important; margin: 0 0 4px 0; padding-left: 0px;">Remaining</h6>
       <ul id="remaining-list" class="guessed-list mdl-list"></ul>
       </div>
     </div>
@@ -1426,6 +1710,10 @@
         </button>
         <button id="toggle-debug-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle debug overlay">
           <i class="material-icons">bug_report</i>
+        </button>
+
+        <button id="language-toggle-btn" class="mdl-button mdl-js-button mdl-button--fab mdl-button--mini-fab mdl-button--colored" title="Toggle language (EN/FR)">
+          <i class="material-icons">language</i>
         </button>
 
       </div>
